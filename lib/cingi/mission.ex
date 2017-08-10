@@ -6,12 +6,8 @@ defmodule Cingi.Mission do
 
 	# Client API
 
-	def start_link(cmd) do
-		GenServer.start_link(__MODULE__, [cmd: cmd])
-	end
-
-	def start_link(submissions) do
-		GenServer.start_link(__MODULE__, [submissions: submissions])
+	def start_link(opts) do
+		GenServer.start_link(__MODULE__, opts)
 	end
 
 	def run(pid) do

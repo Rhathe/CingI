@@ -34,7 +34,7 @@ defmodule CingiMissionTest do
 	end
 
 	defp create_basher(cmd) do
-		{:ok, pid} = Mission.start_link(cmd)
+		{:ok, pid} = Mission.start_link([cmd: cmd])
 		pid
 	end
 
