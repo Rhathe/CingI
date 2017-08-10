@@ -4,6 +4,7 @@ defmodule Cingi.Mission do
 
 	defstruct [
 		cmd: nil,
+		supermission_pid: nil,
 		submissions: nil,
 		submission_pids: [],
 		output: [],
@@ -20,6 +21,10 @@ defmodule Cingi.Mission do
 
 	def run(pid) do
 		GenServer.cast(pid, {:run})
+	end
+
+	def send(pid, data) do
+		GenServer.cast(pid, {:send, data})
 	end
 
 	def get(pid) do
@@ -45,6 +50,10 @@ defmodule Cingi.Mission do
 		{:noreply, %Mission{mission | running: true, submission_pids: submission_pids}}
 	end
 
+	def handle_cast({:send, data}, mission) do
+		{:noreply, %Mission{mission | output: mission.output ++ [data]}}
+	end
+
 	def run_cmd(cmd) do
 		Porcelain.spawn("bash", [ "-c", cmd], out: {:send, self()})
 		[]
@@ -52,7 +61,7 @@ defmodule Cingi.Mission do
 
 	def run_submissions(mission) do
 		Enum.map(mission.submissions, fn submission ->
-			{:ok, pid} = Mission.start_link([cmd: submission])
+			{:ok, pid} = Mission.start_link([cmd: submission, supermission_pid: self()])
 			Mission.run(pid)
 			pid
 		end)
@@ -63,6 +72,7 @@ defmodule Cingi.Mission do
 	end
 
 	def handle_info({_pid, :data, :out, data}, mission) do
+		if mission.supermission_pid do Mission.send(mission.supermission_pid, data) end
 		{:noreply, %Mission{mission | output: mission.output ++ [data]}}
 	end
 
