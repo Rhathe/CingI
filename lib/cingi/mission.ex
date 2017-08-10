@@ -7,11 +7,11 @@ defmodule Cingi.Mission do
 	# Client API
 
 	def start_link(cmd) do
-		GenServer.start_link(__MODULE__, cmd)
+		GenServer.start_link(__MODULE__, [cmd: cmd])
 	end
 
 	def start_link(submissions) do
-		GenServer.start_link(__MODULE__, submissions)
+		GenServer.start_link(__MODULE__, [submissions: submissions])
 	end
 
 	def run(pid) do
@@ -24,16 +24,14 @@ defmodule Cingi.Mission do
 
 	# Server Callbacks
 
-	def init(cmd) do
-		{:ok, %Mission{cmd: cmd}}
-	end
-
-	def init(submissions) do
-		{:ok, %Mission{submissions: submissions}}
+	def init(opts) do
+		{:ok, struct(Mission, opts)}
 	end
 
 	def handle_cast({:run}, mission) do
-		Porcelain.spawn("bash", [ "-c", mission.cmd], out: {:send, self()})
+		cond do
+			mission.cmd -> Porcelain.spawn("bash", [ "-c", mission.cmd], out: {:send, self()})
+		end
 		{:noreply, %Mission{mission | running: true}}
 	end
 
