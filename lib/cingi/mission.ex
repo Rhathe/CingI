@@ -5,6 +5,7 @@ defmodule Cingi.Mission do
 	defstruct [
 		cmd: nil,
 		submissions: nil,
+		submission_pids: [],
 		output: [],
 		running: false,
 		parallel: false,
@@ -37,10 +38,24 @@ defmodule Cingi.Mission do
 	end
 
 	def handle_cast({:run}, mission) do
-		cond do
-			mission.cmd -> Porcelain.spawn("bash", [ "-c", mission.cmd], out: {:send, self()})
+		submission_pids = cond do
+			mission.cmd -> run_cmd(mission.cmd)
+			mission.submissions -> run_submissions(mission)
 		end
-		{:noreply, %Mission{mission | running: true}}
+		{:noreply, %Mission{mission | running: true, submission_pids: submission_pids}}
+	end
+
+	def run_cmd(cmd) do
+		Porcelain.spawn("bash", [ "-c", cmd], out: {:send, self()})
+		[]
+	end
+
+	def run_submissions(mission) do
+		Enum.map(mission.submissions, fn submission ->
+			{:ok, pid} = Mission.start_link([cmd: submission])
+			Mission.run(pid)
+			pid
+		end)
 	end
 
 	def handle_call({:get}, _from, mission) do
