@@ -24,10 +24,11 @@ defmodule Cingi.Basher do
 	end
 
 	def handle_cast({:run}, basher) do
+		[cmd | args] = String.split(basher.cmd)
 		{:noreply, %Cingi.Basher{
 			basher |
 			running: true,
-			output: basher.output ++ [System.cmd(basher.cmd, [])]
+			output: basher.output ++ [System.cmd(cmd, args)]
 		}}
 	end
 
