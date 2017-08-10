@@ -2,7 +2,14 @@ defmodule Cingi.Mission do
 	alias Cingi.Mission
 	use GenServer
 
-	defstruct cmd: Null, submissions: Null, output: [], running: false, exit_code: Null
+	defstruct [
+		cmd: nil,
+		submissions: nil,
+		output: [],
+		running: false,
+		parallel: false,
+		exit_code: nil
+	]
 
 	# Client API
 
@@ -21,7 +28,12 @@ defmodule Cingi.Mission do
 	# Server Callbacks
 
 	def init(opts) do
-		{:ok, struct(Mission, opts)}
+		mission = struct(Mission, opts)
+		cond do
+			mission.cmd -> :ok
+			mission.submissions -> :ok
+		end
+		{:ok, mission}
 	end
 
 	def handle_cast({:run}, mission) do
