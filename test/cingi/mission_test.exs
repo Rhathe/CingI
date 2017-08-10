@@ -3,27 +3,27 @@ defmodule CingiMissionTest do
 	alias Cingi.Mission
 	doctest Mission
 
-	test "creates basher" do
-		pid = create_basher("echo")
+	test "creates mission" do
+		pid = create_mission("echo")
 		assert Mission.get(pid) == %Mission{cmd: "echo", output: [], running: false}
 	end
 
-	test "runs basher no args" do
-		pid = create_basher("echo")
+	test "runs mission no args" do
+		pid = create_mission("echo")
 		Mission.run(pid)
 		check_exit_code(pid)
 		assert Mission.get(pid) == %Mission{cmd: "echo", output: ["\n"], running: true, exit_code: 0}
 	end
 
-	test "runs basher with args" do
-		pid = create_basher("echo blah")
+	test "runs mission with args" do
+		pid = create_mission("echo blah")
 		Mission.run(pid)
 		check_exit_code(pid)
 		assert Mission.get(pid) == %Mission{cmd: "echo blah", output: ["blah\n"], running: true, exit_code: 0}
 	end
 
-	test "runs basher with args and ampersands" do
-		pid = create_basher("echo blah && sleep 0.1 && echo blah2")
+	test "runs mission with args and ampersands" do
+		pid = create_mission("echo blah && sleep 0.1 && echo blah2")
 		Mission.run(pid)
 		check_exit_code(pid)
 		assert Mission.get(pid) == %Mission{
@@ -33,16 +33,16 @@ defmodule CingiMissionTest do
 		}
 	end
 
-	defp create_basher(cmd) do
+	defp create_mission(cmd) do
 		{:ok, pid} = Mission.start_link([cmd: cmd])
 		pid
 	end
 
 	defp check_exit_code(pid) do
-		basher = Mission.get(pid)
-		case basher.exit_code do
+		mission = Mission.get(pid)
+		case mission.exit_code do
 			Null -> check_exit_code(pid)
-			_ -> basher.exit_code
+			_ -> mission.exit_code
 		end
 	end
 end
