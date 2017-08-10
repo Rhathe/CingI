@@ -22,6 +22,13 @@ defmodule CingiBasherTest do
 		assert Basher.get(pid) == %Basher{cmd: "echo blah", output: ["blah\n"], running: true, exit_code: 0}
 	end
 
+	test "runs basher with args and ampersands" do
+		pid = create_basher("echo blah && echo blah2")
+		Basher.run(pid)
+		check_exit_code(pid)
+		assert Basher.get(pid) == %Basher{cmd: "echo blah && echo blah2", output: ["blah\nblah2\n"], running: true, exit_code: 0}
+	end
+
 	defp create_basher(cmd) do
 		{:ok, pid} = Basher.start_link(cmd)
 		pid

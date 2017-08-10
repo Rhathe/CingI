@@ -25,8 +25,7 @@ defmodule Cingi.Basher do
 	end
 
 	def handle_cast({:run}, basher) do
-		[cmd | args] = String.split(basher.cmd)
-		Porcelain.spawn(cmd, args, out: {:send, self()})
+		Porcelain.spawn("bash", [ "-c", basher.cmd], out: {:send, self()})
 		{:noreply, %Basher{basher | running: true}}
 	end
 
@@ -34,11 +33,11 @@ defmodule Cingi.Basher do
 		{:reply, basher, basher}
 	end
 
-	def handle_info({pid, :data, :out, data}, basher) do
+	def handle_info({_pid, :data, :out, data}, basher) do
 		{:noreply, %Basher{basher | output: basher.output ++ [data]}}
 	end
 
-	def handle_info({pid, :result, result}, basher) do
+	def handle_info({_pid, :result, result}, basher) do
 		{:noreply, %Basher{basher | exit_code: result.status}}
 	end
 end
