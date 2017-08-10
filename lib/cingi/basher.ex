@@ -1,7 +1,8 @@
 defmodule Cingi.Basher do
+	alias Cingi.Basher
 	use GenServer
 
-	defstruct cmd: "", output: [], running: false
+	defstruct cmd: "", output: [], running: false, exit_code: Null
 
 	# Client API
 
@@ -20,19 +21,24 @@ defmodule Cingi.Basher do
 	# Server Callbacks
 
 	def init(cmd) do
-		{:ok, %Cingi.Basher{cmd: cmd}}
+		{:ok, %Basher{cmd: cmd}}
 	end
 
 	def handle_cast({:run}, basher) do
 		[cmd | args] = String.split(basher.cmd)
-		{:noreply, %Cingi.Basher{
-			basher |
-			running: true,
-			output: basher.output ++ [System.cmd(cmd, args)]
-		}}
+		Porcelain.spawn(cmd, args, out: {:send, self()})
+		{:noreply, %Basher{basher | running: true}}
 	end
 
 	def handle_call({:get}, _from, basher) do
 		{:reply, basher, basher}
+	end
+
+	def handle_info({pid, :data, :out, data}, basher) do
+		{:noreply, %Basher{basher | output: basher.output ++ [data]}}
+	end
+
+	def handle_info({pid, :result, result}, basher) do
+		{:noreply, %Basher{basher | exit_code: result.status}}
 	end
 end
