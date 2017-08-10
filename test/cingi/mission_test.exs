@@ -41,9 +41,9 @@ defmodule CingiMissionTest do
 	test "runs submissions" do
 		{:ok, pid} = Mission.start_link([submissions: ["echo 1", "echo 2"]])
 		Mission.run(pid)
-		Process.sleep(500)
+		check_exit_code(pid)
 		mission = Mission.get(pid)
-		assert %Mission{mission | submission_pids: [], submissions: nil, output: []} == %Mission{running: true}
+		assert %Mission{mission | submission_pids: [], submissions: nil, output: []} == %Mission{running: true, exit_code: 0}
 		assert "1\n" in mission.output
 		assert "2\n" in mission.output
 		assert "3\n" not in mission.output

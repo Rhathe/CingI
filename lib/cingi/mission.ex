@@ -23,8 +23,12 @@ defmodule Cingi.Mission do
 		GenServer.cast(pid, {:run})
 	end
 
-	def send(pid, data) do
-		GenServer.cast(pid, {:send, data})
+	def send(pid, submission_pid, data) do
+		GenServer.cast(pid, {submission_pid, :data, :out, data})
+	end
+
+	def finish_submission(pid, submission_pid, result) do
+		GenServer.cast(pid, {submission_pid, :result, result})
 	end
 
 	def get(pid) do
@@ -50,8 +54,12 @@ defmodule Cingi.Mission do
 		{:noreply, %Mission{mission | running: true, submission_pids: submission_pids}}
 	end
 
-	def handle_cast({:send, data}, mission) do
-		{:noreply, %Mission{mission | output: mission.output ++ [data]}}
+	def handle_cast({pid, :data, :out, data}, mission) do
+		handle_info({pid, :data, :out, data}, mission)
+	end
+
+	def handle_cast({pid, :result, result}, mission) do
+		handle_info({pid, :result, result}, mission)
 	end
 
 	def run_cmd(cmd) do
@@ -71,12 +79,22 @@ defmodule Cingi.Mission do
 		{:reply, mission, mission}
 	end
 
+
 	def handle_info({_pid, :data, :out, data}, mission) do
-		if mission.supermission_pid do Mission.send(mission.supermission_pid, data) end
+		if mission.supermission_pid do Mission.send(mission.supermission_pid, self(), data) end
 		{:noreply, %Mission{mission | output: mission.output ++ [data]}}
 	end
 
 	def handle_info({_pid, :result, result}, mission) do
-		{:noreply, %Mission{mission | exit_code: result.status}}
+		if mission.supermission_pid do Mission.finish_submission(mission.supermission_pid, self(), result) end
+		exit_codes = Enum.map(mission.submission_pids, fn m -> Mission.get(m).exit_code end)
+		exit_code = cond do
+			length(exit_codes) == 0 -> result.status
+			true -> cond do
+				nil in exit_codes -> nil
+				true -> Enum.at(exit_codes, 0)
+			end
+		end
+		{:noreply, %Mission{mission | exit_code: exit_code}}
 	end
 end
