@@ -5,12 +5,15 @@ defmodule Cingi.Mission do
 
 	defstruct [
 		key: "",
+
 		mission_report_pid: nil,
+		supermission_pid: nil,
+		submission_pids: [],
+		headquarters_pid: nil,
+
 		decoded_yaml: nil,
 		cmd: nil,
-		supermission_pid: nil,
 		submissions: nil,
-		submission_pids: [],
 		output: [],
 		running: false,
 		parallel: false,
@@ -23,8 +26,8 @@ defmodule Cingi.Mission do
 		GenServer.start_link(__MODULE__, opts)
 	end
 
-	def run(pid) do
-		GenServer.cast(pid, {:run})
+	def run(pid, headquarters_pid \\ nil) do
+		GenServer.cast(pid, {:run, headquarters_pid})
 	end
 
 	def send(pid, submission_pid, data) do
@@ -100,12 +103,16 @@ defmodule Cingi.Mission do
 		end
 	end
 
-	def handle_cast({:run}, mission) do
+	def handle_cast({:run, headquarters_pid}, mission) do
 		submission_pids = cond do
 			mission.cmd -> run_cmd(mission.cmd)
 			mission.submissions -> run_submissions(mission)
 		end
-		{:noreply, %Mission{mission | running: true, submission_pids: submission_pids}}
+		{:noreply, %Mission{mission |
+			running: true,
+			headquarters_pid: headquarters_pid,
+			submission_pids: submission_pids
+		}}
 	end
 
 	def handle_cast({pid, :data, :out, data}, mission) do
