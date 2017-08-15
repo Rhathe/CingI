@@ -1,9 +1,11 @@
 defmodule Cingi.Mission do
 	alias Cingi.Mission
+	alias Cingi.MissionReport
 	use GenServer
 
 	defstruct [
 		key: "",
+		mission_report_pid: nil,
 		decoded_yaml: nil,
 		cmd: nil,
 		supermission_pid: nil,
@@ -50,6 +52,12 @@ defmodule Cingi.Mission do
 			mission.cmd -> :ok
 			mission.submissions -> :ok
 		end
+
+		mr_pid = mission.mission_report_pid
+		if mr_pid do
+			MissionReport.initialized_mission(mr_pid, {:mission_init, self(), mission})
+		end
+
 		{:ok, mission}
 	end
 
