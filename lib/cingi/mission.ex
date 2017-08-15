@@ -3,6 +3,8 @@ defmodule Cingi.Mission do
 	use GenServer
 
 	defstruct [
+		key: "",
+		decoded_yaml: nil,
 		cmd: nil,
 		supermission_pid: nil,
 		submissions: nil,
@@ -38,12 +40,56 @@ defmodule Cingi.Mission do
 	# Server Callbacks
 
 	def init(opts) do
+		opts = cond do
+			opts[:decoded_yaml] -> construct_opts_from_decoded_yaml(opts)
+			true -> opts
+		end
+
 		mission = struct(Mission, opts)
 		cond do
 			mission.cmd -> :ok
 			mission.submissions -> :ok
 		end
 		{:ok, mission}
+	end
+
+	defp construct_opts_from_decoded_yaml(opts) do
+		opts = Keyword.delete(opts, :key)
+		opts = Keyword.delete(opts, :cmd)
+		opts = Keyword.delete(opts, :submissions)
+		decoded_yaml = opts[:decoded_yaml]
+
+		cond do
+			is_map(decoded_yaml) -> opts ++ construct_opts_from_map(opts)
+			true -> opts ++ [key: decoded_yaml, cmd: decoded_yaml]
+		end
+	end
+
+	defp construct_opts_from_map(opts) do
+		map = opts[:decoded_yaml]
+		keys = Map.keys(map)
+		first_key = Enum.at(keys, 0)
+		first_val_map = cond do
+			is_map(map[first_key]) -> map[first_key]
+			true -> %{"missions" => map[first_key]}
+		end
+
+		opts ++ case length(keys) do
+			0 -> raise "Empty map?"
+			1 -> construct_map_opts(Map.merge(%{"name" => first_key}, first_val_map))
+			_ -> construct_map_opts(map)
+		end
+	end
+
+	defp construct_map_opts(map) do
+		new_map = [key: map["name"]]
+		submissions = map["missions"]
+
+		new_map ++ cond do
+			is_map(submissions) -> [submissions: submissions]
+			is_list(submissions) -> [submissions: submissions]
+			true -> [cmd: submissions]
+		end
 	end
 
 	def handle_cast({:run}, mission) do
