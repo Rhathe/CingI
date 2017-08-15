@@ -1,5 +1,5 @@
-defmodule Cingi.MissionStatement do
-	alias Cingi.MissionStatement
+defmodule Cingi.MissionReport do
+	alias Cingi.MissionReport
 	use GenServer
 
 	defstruct [
@@ -22,13 +22,13 @@ defmodule Cingi.MissionStatement do
 	# Server Callbacks
 
 	def init([string: yaml, headquarters: hq]) do
-		missionStatement = %MissionStatement{map: YamlElixir.read_from_string(yaml), headquarters: hq}
-		{:ok, missionStatement}
+		missionReport = %MissionReport{map: YamlElixir.read_from_string(yaml), headquarters: hq}
+		{:ok, missionReport}
 	end
 
 	def init([file: path, headquarters: hq]) do
-		missionStatement = %MissionStatement{map: YamlElixir.read_from_file(path), headquarters: hq}
-		{:ok, missionStatement}
+		missionReport = %MissionReport{map: YamlElixir.read_from_file(path), headquarters: hq}
+		{:ok, missionReport}
 	end
 end
 

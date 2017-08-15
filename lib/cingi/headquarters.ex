@@ -1,6 +1,6 @@
 defmodule Cingi.Headquarters do
 	alias Cingi.Headquarters
-	alias Cingi.MissionStatement
+	alias Cingi.MissionReport
 	use GenServer
 
 	defstruct [
@@ -26,7 +26,7 @@ defmodule Cingi.Headquarters do
 	end
 
 	def handle_call({:yaml, yaml_tuple}, _from, headquarters) do
-		missionReport = MissionStatement.start_link(yaml_tuple ++ [headquarters: self()])
+		missionReport = MissionReport.start_link(yaml_tuple ++ [headquarters: self()])
 		reports = headquarters[:mission_reports] ++ missionReport
 		{:reply, missionReport, %Headquarters{headquarters | mission_reports: reports}}
 	end
