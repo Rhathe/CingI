@@ -4,6 +4,8 @@ defmodule Cingi.MissionStatement do
 
 	defstruct [
 		map: %{},
+		starting_mission: nil,
+		headquarters: nil,
 		missions: %{}
 	]
 
@@ -19,13 +21,13 @@ defmodule Cingi.MissionStatement do
 
 	# Server Callbacks
 
-	def init([:string, yaml]) do
-		missionStatement = %MissionStatement{map: YamlElixir.read_from_string yaml}
+	def init([string: yaml, headquarters: hq]) do
+		missionStatement = %MissionStatement{map: YamlElixir.read_from_string(yaml), headquarters: hq}
 		{:ok, missionStatement}
 	end
 
-	def init([:file, path]) do
-		missionStatement = %MissionStatement{map: YamlElixir.read_from_file path}
+	def init([file: path, headquarters: hq]) do
+		missionStatement = %MissionStatement{map: YamlElixir.read_from_file(path), headquarters: hq}
 		{:ok, missionStatement}
 	end
 end

@@ -9,7 +9,7 @@ defmodule Cingi.Application do
     # List all child processes to be supervised
     children = [
       # Starts a worker by calling: Cingi.Worker.start_link(arg)
-      # {Cingi.Worker, arg},
+      {Cingi.Headquarters, name: Cingi.Headquarters}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

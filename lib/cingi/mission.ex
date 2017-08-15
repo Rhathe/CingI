@@ -125,7 +125,6 @@ defmodule Cingi.Mission do
 		{:reply, mission, mission}
 	end
 
-
 	def handle_info({_pid, :data, :out, data}, mission) do
 		if mission.supermission_pid do Mission.send(mission.supermission_pid, self(), data) end
 		{:noreply, %Mission{mission | output: mission.output ++ [data]}}
