@@ -13,10 +13,13 @@ defmodule Cingi.Mission do
 
 		decoded_yaml: nil,
 		cmd: nil,
+		bash_process: nil,
 		submissions: nil,
 		output: [],
+
 		running: false,
-		parallel: false,
+		finished: false,
+
 		exit_code: nil
 	]
 
@@ -40,6 +43,10 @@ defmodule Cingi.Mission do
 
 	def finish_submission(pid, submission_pid, result) do
 		GenServer.cast(pid, {submission_pid, :result, result})
+	end
+
+	def run_bash_process(pid, cmd) do
+		GenServer.cast(pid, {:run_bash_process, cmd})
 	end
 
 	def pause(pid) do
@@ -115,7 +122,7 @@ defmodule Cingi.Mission do
 
 	def handle_cast({:run, headquarters_pid}, mission) do
 		cond do
-			mission.cmd -> run_cmd(mission.cmd)
+			mission.cmd -> Mission.run_bash_process(self(), mission.cmd)
 			mission.submissions -> run_submissions(mission)
 		end
 
@@ -138,8 +145,9 @@ defmodule Cingi.Mission do
 		{:noreply, %Mission{mission | submission_pids: submission_pids}}
 	end
 
-	def run_cmd(cmd) do
-		Porcelain.spawn("bash", [ "-c", cmd], out: {:send, self()})
+	def handle_cast({:run_bash_process, cmd}, mission) do
+		proc = Porcelain.spawn("bash", [ "-c", cmd], out: {:send, self()})
+		{:noreply, %Mission{mission | bash_process: proc}}
 	end
 
 	def run_submissions(mission) do
@@ -179,7 +187,11 @@ defmodule Cingi.Mission do
 				true -> Enum.at(exit_codes, 0)
 			end
 		end
-		{:noreply, %Mission{mission | exit_code: exit_code}}
+		{:noreply, %Mission{mission |
+			exit_code: exit_code,
+			finished: true,
+			running: false
+		}}
 	end
 
 	defp finished(mission, result) do

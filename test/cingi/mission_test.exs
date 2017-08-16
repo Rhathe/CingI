@@ -13,29 +13,65 @@ defmodule CingiMissionTest do
 		{:error, {%RuntimeError{message: "Must have cmd or submissions"}, _}}  = Mission.start_link([])
 	end
 
+	test "runs mission with appropriate running/finished flag" do
+		pid = mission_with_cmd("nc -l 9000")
+		Mission.run(pid)
+		assert %{
+			cmd: "nc -l 9000",
+			output: [],
+			finished: false,
+			running: true,
+			exit_code: nil
+		} = Mission.get(pid)
+
+		Porcelain.spawn("bash", [ "-c", "echo -n blah | nc localhost 9000"])
+		check_exit_code(pid)
+		assert %{
+			cmd: "nc -l 9000",
+			output: ["blah"],
+			finished: true,
+			running: false,
+			exit_code: 0
+		} = Mission.get(pid)
+	end
+
 	test "runs mission no args" do
 		pid = mission_with_cmd("echo")
 		Mission.run(pid)
 		check_exit_code(pid)
-		assert Mission.get(pid) == %Mission{cmd: "echo", output: ["\n"], running: true, exit_code: 0}
+		assert %{
+			cmd: "echo",
+			output: ["\n"],
+			finished: true,
+			running: false,
+			exit_code: 0
+		} = Mission.get(pid)
 	end
 
 	test "runs mission with args" do
 		pid = mission_with_cmd("echo blah")
 		Mission.run(pid)
 		check_exit_code(pid)
-		assert Mission.get(pid) == %Mission{cmd: "echo blah", output: ["blah\n"], running: true, exit_code: 0}
+		assert %{
+			cmd: "echo blah",
+			output: ["blah\n"],
+			finished: true,
+			running: false,
+			exit_code: 0
+		} = Mission.get(pid)
 	end
 
 	test "runs mission with args and ampersands" do
 		pid = mission_with_cmd("echo blah && sleep 0.1 && echo blah2")
 		Mission.run(pid)
 		check_exit_code(pid)
-		assert Mission.get(pid) == %Mission{
+		assert %{
 			cmd: "echo blah && sleep 0.1 && echo blah2",
 			output: ["blah\n", "blah2\n"],
-			running: true, exit_code: 0
-		}
+			finished: true,
+			running: false,
+			exit_code: 0
+		} = Mission.get(pid)
 	end
 
 	test "constructs with yaml command" do
