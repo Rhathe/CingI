@@ -45,15 +45,15 @@ defmodule Cingi.Mission do
 	# Server Callbacks
 
 	def init(opts) do
-		opts = cond do
-			opts[:decoded_yaml] -> construct_opts_from_decoded_yaml(opts)
-			true -> opts
+		opts = case opts[:decoded_yaml] do
+			nil -> opts
+			_ -> construct_opts_from_decoded_yaml(opts)
 		end
 
 		mission = struct(Mission, opts)
-		cond do
-			mission.cmd -> :ok
-			mission.submissions -> :ok
+		case mission do
+			%{cmd: nil, submissions: nil} -> raise "Must have cmd or submissions"
+			_ -> :ok
 		end
 
 		mr_pid = mission.mission_report_pid
@@ -65,14 +65,13 @@ defmodule Cingi.Mission do
 	end
 
 	defp construct_opts_from_decoded_yaml(opts) do
-		opts = Keyword.delete(opts, :key)
-		opts = Keyword.delete(opts, :cmd)
-		opts = Keyword.delete(opts, :submissions)
+		del = &Keyword.delete/2
+		opts = del.(opts, :key) |> del.(:cmd) |> del.(:submissions)
 		decoded_yaml = opts[:decoded_yaml]
 
-		cond do
-			is_map(decoded_yaml) -> opts ++ construct_opts_from_map(opts)
-			true -> opts ++ [key: decoded_yaml, cmd: decoded_yaml]
+		case decoded_yaml do
+			%{} -> opts ++ construct_opts_from_map(opts)
+			_ -> opts ++ [key: decoded_yaml, cmd: decoded_yaml]
 		end
 	end
 
@@ -80,9 +79,9 @@ defmodule Cingi.Mission do
 		map = opts[:decoded_yaml]
 		keys = Map.keys(map)
 		first_key = Enum.at(keys, 0)
-		first_val_map = cond do
-			is_map(map[first_key]) -> map[first_key]
-			true -> %{"missions" => map[first_key]}
+		first_val_map = case map[first_key] do
+			%{} -> map[first_key]
+			_ -> %{"missions" => map[first_key]}
 		end
 
 		opts ++ case length(keys) do
@@ -148,9 +147,9 @@ defmodule Cingi.Mission do
 	def handle_info({_pid, :result, result}, mission) do
 		if mission.supermission_pid do Mission.finish_submission(mission.supermission_pid, self(), result) end
 		exit_codes = Enum.map(mission.submission_pids, fn m -> Mission.get(m).exit_code end)
-		exit_code = cond do
-			length(exit_codes) == 0 -> result.status
-			true -> cond do
+		exit_code = case length(exit_codes) do
+			0 -> result.status
+			_ -> cond do
 				nil in exit_codes -> nil
 				true -> Enum.at(exit_codes, 0)
 			end

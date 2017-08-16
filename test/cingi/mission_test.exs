@@ -10,7 +10,7 @@ defmodule CingiMissionTest do
 
 	test "creates empty mission fails" do
 		Process.flag :trap_exit, true
-		{:error, {:cond_clause, _}}  = Mission.start_link([])
+		{:error, {%RuntimeError{message: "Must have cmd or submissions"}, _}}  = Mission.start_link([])
 	end
 
 	test "runs mission no args" do

@@ -1,5 +1,6 @@
 defmodule Cingi.MissionReport do
 	alias Cingi.MissionReport
+	alias Cingi.Mission
 	use GenServer
 
 	defstruct [
