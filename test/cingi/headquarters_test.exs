@@ -1,19 +1,40 @@
-defmodule CingiMissionTest do
+defmodule CingiHeadquartersTest do
 	use ExUnit.Case
-	alias Cingi.Mission
-	doctest Mission
+	alias Cingi.Headquarters
+	alias Cingi.MissionReport
+	doctest Headquarters
 
-	test "creates mission" do
-		pid = mission_with_cmd("echo")
-		assert Mission.get(pid) == %Mission{cmd: "echo", output: [], running: false}
+	test "creates headquarters" do
+		{:ok, pid} = Headquarters.start_link()
+		assert %{
+			running: true,
+			mission_reports: [],
+			queued_missions: [],
+			running_missions: [],
+			finished_missions: []
+		} = Headquarters.get(pid)
 	end
 
+	test "can pause headquarters" do
+		pid = get_paused()
+		assert %{running: false} = Headquarters.get(pid)
+	end
+
+	test "can create mission report" do
+		pid = get_paused()
+		report_pid = Headquarters.create_report(pid, [string: "missions: echo 1"])
+		hq = Headquarters.get(pid)
+		report = MissionReport.get(report_pid)
+		assert %{"missions" => "echo 1"} = report.mission_statements
+		assert report in hq.mission_reports
+	end
+
+	@docp """
 	test "creates empty mission fails" do
 		Process.flag :trap_exit, true
 		{:error, {%RuntimeError{message: "Must have cmd or submissions"}, _}}  = Mission.start_link([])
 	end
 
-	@docp """
 	test "runs mission no args" do
 		pid = mission_with_cmd("echo")
 		Mission.run(pid)
@@ -50,7 +71,6 @@ defmodule CingiMissionTest do
 		assert "2\n" in mission.output
 		assert "3\n" not in mission.output
 	end
-	"""
 
 	test "constructs with yaml command" do
 		{:ok, pid} = Mission.start_link([decoded_yaml: "echo 1"])
@@ -146,14 +166,16 @@ defmodule CingiMissionTest do
 			}
 		}
 	end
+	"""
 
-	defp mission_with_cmd(cmd) do
-		{:ok, pid} = Mission.start_link([cmd: cmd])
+	defp get_paused() do
+		{:ok, pid} = Headquarters.start_link()
+		Headquarters.pause(pid)
 		pid
 	end
 
 	defp check_exit_code(pid) do
-		mission = Mission.get(pid)
+		mission = Cingi.Mission.get(pid)
 		case mission.exit_code do
 			nil -> check_exit_code(pid)
 			_ -> mission.exit_code

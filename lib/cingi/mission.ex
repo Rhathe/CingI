@@ -6,7 +6,7 @@ defmodule Cingi.Mission do
 	defstruct [
 		key: "",
 
-		mission_report_pid: nil,
+		report_pid: nil,
 		supermission_pid: nil,
 		submission_pids: [],
 		headquarters_pid: nil,
@@ -56,10 +56,7 @@ defmodule Cingi.Mission do
 			_ -> :ok
 		end
 
-		mr_pid = mission.mission_report_pid
-		if mr_pid do
-			MissionReport.initialized_mission(mr_pid, {:mission_init, self(), mission})
-		end
+		MissionReport.initialized_mission(mission.report_pid, {:mission_init, self(), mission})
 
 		{:ok, mission}
 	end
@@ -103,10 +100,11 @@ defmodule Cingi.Mission do
 	end
 
 	def handle_cast({:run, headquarters_pid}, mission) do
-		submission_pids = cond do
+		submission_pids = mission.submission_pids ++ cond do
 			mission.cmd -> run_cmd(mission.cmd)
 			mission.submissions -> run_submissions(mission)
 		end
+
 		{:noreply, %Mission{mission |
 			running: true,
 			headquarters_pid: headquarters_pid,
@@ -129,9 +127,8 @@ defmodule Cingi.Mission do
 
 	def run_submissions(mission) do
 		Enum.map(mission.submissions, fn submission ->
-			{:ok, pid} = Mission.start_link([cmd: submission, supermission_pid: self()])
-			Mission.run(pid)
-			pid
+			opts = [decoded_yaml: submission, supermission_pid: self()]
+			MissionReport.init_mission(mission.report_pid, opts)
 		end)
 	end
 
@@ -145,7 +142,8 @@ defmodule Cingi.Mission do
 	end
 
 	def handle_info({_pid, :result, result}, mission) do
-		if mission.supermission_pid do Mission.finish_submission(mission.supermission_pid, self(), result) end
+		finished(mission, result)
+
 		exit_codes = Enum.map(mission.submission_pids, fn m -> Mission.get(m).exit_code end)
 		exit_code = case length(exit_codes) do
 			0 -> result.status
@@ -155,5 +153,10 @@ defmodule Cingi.Mission do
 			end
 		end
 		{:noreply, %Mission{mission | exit_code: exit_code}}
+	end
+
+	defp finished(mission, result) do
+		mission_pid = mission.supermission_pid
+		if mission_pid do Mission.finish_submission(mission_pid, self(), result) end
 	end
 end

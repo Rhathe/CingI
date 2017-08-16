@@ -1,6 +1,7 @@
 defmodule Cingi.MissionReport do
 	alias Cingi.MissionReport
 	alias Cingi.Mission
+	alias Cingi.Headquarters
 	use GenServer
 
 	defstruct [
@@ -15,12 +16,16 @@ defmodule Cingi.MissionReport do
 		GenServer.start_link(__MODULE__, opts)
 	end
 
-	def get(pid) do
-		GenServer.call(pid, {:get})
+	def initialized_mission(pid, opts) do
+		GenServer.cast(pid, opts)
 	end
 
-	def initialized_mission(pid, opts) do
-		GenServer.call(pid, opts)
+	def init_mission(pid, opts) do
+		GenServer.cast(pid, {:init_mission, opts})
+	end
+
+	def get(pid) do
+		GenServer.call(pid, :get)
 	end
 
 	# Server Callbacks
@@ -36,13 +41,16 @@ defmodule Cingi.MissionReport do
 	end
 
 	def start_missions(map, hq) do
-		missionReport = %MissionReport{mission_statements: map, headquarters: hq}
-		Mission.start_link([decoded_yml: missionReport, mission_report_pid: self()])
-		missionReport
+		MissionReport.init_mission(hq, [decoded_yaml: map, mission_report_pid: self()])
+		%MissionReport{mission_statements: map, headquarters: hq}
 	end
 
 	def handle_cast({:mission_init, mission_pid, _}, _from, report) do
 		missions = report[:missions] ++ [mission_pid]
 		{:noreply, %MissionReport{report | missions: missions}}
+	end
+
+	def handle_call(:get, _from, report) do
+		{:reply, report, report}
 	end
 end
