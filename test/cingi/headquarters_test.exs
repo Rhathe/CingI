@@ -56,24 +56,43 @@ defmodule CingiHeadquartersTest do
 		hq = Headquarters.get(pid)
 		assert length(hq.queued_missions) == 0
 		assert length(hq.running_missions) == 1
-		check_exit_code(res[:mission_pid])
-		mission = Mission.get(res[:mission_pid])
+		mission = wait_for_exit_code(res[:mission_pid])
 		assert ["1\n"] = mission.output
 	end
 
-	test "runs submissions" do
-		yaml = "missions:\n  - echo 1\n  - echo 2"
+	test "runs sequential submissions" do
+		#pid = mission_with_cmd("nc -l 9000")
+		#Porcelain.spawn("bash", [ "-c", "echo -n blah | nc localhost 9000"])
+		#yaml = "missions:\n  - nc -l 9000\n  - nc -l 9001"
+		yaml = "missions:\n  - ncat -l -i 1 9000\n  - ncat -l -i 1 9001"
 		res = create_mission_report([string: yaml])
 		pid = res[:pid]
 		Headquarters.resume(pid)
-		check_exit_code(res[:mission_pid])
 
+		mission = wait_for_submissions(res[:mission_pid], 1)
+		hq = Headquarters.get(pid)
+		assert length(hq.queued_missions) == 0
+		assert length(hq.running_missions) == 2
+		assert %{output: [], exit_code: nil, submission_pids: [sm1]} = mission
+		submission1 = Mission.get(sm1)
+		assert %{cmd: "ncat -l -i 1 9000", running: true, finished: false} = submission1
+
+		Porcelain.spawn("bash", [ "-c", "echo -n blah1 | nc localhost 9000"])
+		mission = wait_for_submissions(res[:mission_pid], 2)
 		hq = Headquarters.get(pid)
 		assert length(hq.queued_missions) == 0
 		assert length(hq.running_missions) == 3
-		mission = Mission.get(res[:mission_pid])
-		assert "1\n" in mission.output
-		assert "2\n" in mission.output
+		assert %{output: ["blah1"], exit_code: nil, submission_pids: [sm1, sm2]} = mission
+		submission1 = Mission.get(sm1)
+		submission2 = Mission.get(sm2)
+		assert %{cmd: "ncat -l -i 1 9000", running: false, finished: true} = submission1
+		assert %{cmd: "ncat -l -i 1 9001", running: true, finished: false} = submission2
+
+		Porcelain.spawn("bash", [ "-c", "echo -n blah2 | nc localhost 9001"])
+		mission = wait_for_exit_code(res[:mission_pid])
+		assert %{output: ["blah1", "blah2"], exit_code: 0} = mission
+		submission2 = Mission.get(sm2)
+		assert %{cmd: "ncat -l -i 1 9001", running: false, finished: true} = submission2
 	end
 
 	defp get_paused() do
@@ -82,11 +101,19 @@ defmodule CingiHeadquartersTest do
 		pid
 	end
 
-	defp check_exit_code(pid) do
+	defp wait_for_exit_code(pid) do
 		mission = Mission.get(pid)
 		case mission.exit_code do
-			nil -> check_exit_code(pid)
-			_ -> mission.exit_code
+			nil -> wait_for_exit_code(pid)
+			_ -> mission
+		end
+	end
+
+	defp wait_for_submissions(pid, n) do
+		mission = Mission.get(pid)
+		cond do
+			n == length(mission.submission_pids) -> mission
+			true -> wait_for_submissions(pid, n)
 		end
 	end
 end

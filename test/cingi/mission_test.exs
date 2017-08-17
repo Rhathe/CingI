@@ -5,7 +5,12 @@ defmodule CingiMissionTest do
 
 	test "creates mission" do
 		pid = mission_with_cmd("echo")
-		assert Mission.get(pid) == %Mission{cmd: "echo", output: [], running: false}
+		assert %{
+			cmd: "echo",
+			output: [],
+			submissions_num: 0,
+			running: false
+		} = Mission.get(pid)
 	end
 
 	test "creates empty mission fails" do
@@ -14,20 +19,20 @@ defmodule CingiMissionTest do
 	end
 
 	test "runs mission with appropriate running/finished flag" do
-		pid = mission_with_cmd("nc -l 9000")
+		pid = mission_with_cmd("ncat -l -i 1 9000")
 		Mission.run(pid)
 		assert %{
-			cmd: "nc -l 9000",
+			cmd: "ncat -l -i 1 9000",
 			output: [],
 			finished: false,
 			running: true,
 			exit_code: nil
 		} = Mission.get(pid)
 
-		Porcelain.spawn("bash", [ "-c", "echo -n blah | nc localhost 9000"])
+		Porcelain.spawn("bash", [ "-c", "echo -n blah | ncat localhost 9000"])
 		check_exit_code(pid)
 		assert %{
-			cmd: "nc -l 9000",
+			cmd: "ncat -l -i 1 9000",
 			output: ["blah"],
 			finished: true,
 			running: false,

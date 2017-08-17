@@ -15,6 +15,7 @@ defmodule Cingi.Mission do
 		cmd: nil,
 		bash_process: nil,
 		submissions: nil,
+		submissions_num: nil,
 		output: [],
 
 		running: false,
@@ -45,8 +46,12 @@ defmodule Cingi.Mission do
 		GenServer.cast(pid, {submission_pid, :result, result})
 	end
 
-	def run_bash_process(pid, cmd) do
-		GenServer.cast(pid, {:run_bash_process, cmd})
+	def run_bash_process(pid) do
+		GenServer.cast(pid, :run_bash_process)
+	end
+
+	def run_submissions(pid) do
+		GenServer.cast(pid, :run_submissions)
 	end
 
 	def pause(pid) do
@@ -70,6 +75,12 @@ defmodule Cingi.Mission do
 		end
 
 		mission = struct(Mission, opts)
+		mission = %Mission{mission | submissions_num: case mission.submissions do
+			%{} -> length(Map.keys(mission.submissions))
+			[_|_] -> length(mission.submissions)
+			_ -> 0
+		end}
+
 		case mission do
 			%{cmd: nil, submissions: nil} -> raise "Must have cmd or submissions"
 			_ -> :ok
@@ -122,8 +133,8 @@ defmodule Cingi.Mission do
 
 	def handle_cast({:run, headquarters_pid}, mission) do
 		cond do
-			mission.cmd -> Mission.run_bash_process(self(), mission.cmd)
-			mission.submissions -> run_submissions(mission)
+			mission.cmd -> Mission.run_bash_process(self())
+			mission.submissions -> Mission.run_submissions(self())
 		end
 
 		{:noreply, %Mission{mission |
@@ -145,16 +156,24 @@ defmodule Cingi.Mission do
 		{:noreply, %Mission{mission | submission_pids: submission_pids}}
 	end
 
-	def handle_cast({:run_bash_process, cmd}, mission) do
-		proc = Porcelain.spawn("bash", [ "-c", cmd], out: {:send, self()})
+	def handle_cast(:run_bash_process, mission) do
+		proc = Porcelain.spawn("./priv/bin/wrapper.sh", [mission.cmd], out: {:send, self()})
 		{:noreply, %Mission{mission | bash_process: proc}}
 	end
 
-	def run_submissions(mission) do
-		for submission <- mission.submissions do
+	def handle_cast(:run_submissions, mission) do
+		[running, remaining] = case mission.submissions do
+			%{} -> [Enum.map(mission.submissions, fn({k, v}) -> %{k => v} end), %{}]
+			[a|b] -> [[a], b]
+			[] -> [[], []]
+		end
+
+		for submission <- running do
 			opts = [decoded_yaml: submission, supermission_pid: self()]
 			MissionReport.init_mission(mission.report_pid, opts)
 		end
+
+		{:noreply, %Mission{mission | submissions: remaining}}
 	end
 
 	def handle_call(:pause, _from, mission) do
@@ -183,10 +202,13 @@ defmodule Cingi.Mission do
 		exit_code = case length(exit_codes) do
 			0 -> result.status
 			_ -> cond do
-				nil in exit_codes -> nil
+				length(exit_codes) != mission.submissions_num -> nil
 				true -> Enum.at(exit_codes, 0)
 			end
 		end
+
+		if is_nil(exit_code) do Mission.run_submissions(self()) end
+
 		{:noreply, %Mission{mission |
 			exit_code: exit_code,
 			finished: true,
