@@ -31,7 +31,7 @@ defmodule Cingi.Mission do
 	end
 
 	def run(pid, headquarters_pid \\ nil) do
-		GenServer.cast(pid, {:run, headquarters_pid})
+		GenServer.call(pid, {:run, headquarters_pid})
 	end
 
 	def send(pid, submission_pid, data) do
@@ -99,7 +99,7 @@ defmodule Cingi.Mission do
 		decoded_yaml = opts[:decoded_yaml]
 
 		case decoded_yaml do
-			%{} -> opts ++ construct_opts_from_map(opts)
+			%{} -> construct_opts_from_map(opts)
 			_ -> opts ++ [key: decoded_yaml, cmd: decoded_yaml]
 		end
 	end
@@ -129,18 +129,6 @@ defmodule Cingi.Mission do
 			is_list(submissions) -> [submissions: submissions]
 			true -> [cmd: submissions]
 		end
-	end
-
-	def handle_cast({:run, headquarters_pid}, mission) do
-		cond do
-			mission.cmd -> Mission.run_bash_process(self())
-			mission.submissions -> Mission.run_submissions(self())
-		end
-
-		{:noreply, %Mission{mission |
-			running: true,
-			headquarters_pid: headquarters_pid
-		}}
 	end
 
 	def handle_cast({pid, :data, :out, data}, mission) do
@@ -176,6 +164,15 @@ defmodule Cingi.Mission do
 		{:noreply, %Mission{mission | submissions: remaining}}
 	end
 
+	def handle_call({:run, headquarters_pid}, _from, mission) do
+		cond do
+			mission.cmd -> Mission.run_bash_process(self())
+			mission.submissions -> Mission.run_submissions(self())
+		end
+		mission = %Mission{mission | running: true, headquarters_pid: headquarters_pid}
+		{:reply, mission, mission}
+	end
+
 	def handle_call(:pause, _from, mission) do
 		mission = %Mission{mission | running: false}
 		{:reply, mission, mission}
@@ -199,10 +196,12 @@ defmodule Cingi.Mission do
 		finished(mission, result)
 
 		exit_codes = Enum.map(mission.submission_pids, fn m -> Mission.get(m).exit_code end)
+
 		exit_code = case length(exit_codes) do
 			0 -> result.status
 			_ -> cond do
 				length(exit_codes) != mission.submissions_num -> nil
+				nil in exit_codes -> nil
 				true -> Enum.at(exit_codes, 0)
 			end
 		end

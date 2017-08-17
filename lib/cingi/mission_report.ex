@@ -41,6 +41,8 @@ defmodule Cingi.MissionReport do
 	end
 
 	def start_missions(map, hq) do
+		name = Map.get(map, "name", "MAIN")
+		map = Map.put(map, "name", name)
 		MissionReport.init_mission(self(), [decoded_yaml: map])
 		%MissionReport{mission_statements: map, headquarters: hq}
 	end

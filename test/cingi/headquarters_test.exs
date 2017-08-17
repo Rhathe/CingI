@@ -61,9 +61,6 @@ defmodule CingiHeadquartersTest do
 	end
 
 	test "runs sequential submissions" do
-		#pid = mission_with_cmd("nc -l 9000")
-		#Porcelain.spawn("bash", [ "-c", "echo -n blah | nc localhost 9000"])
-		#yaml = "missions:\n  - nc -l 9000\n  - nc -l 9001"
 		yaml = "missions:\n  - ncat -l -i 1 9000\n  - ncat -l -i 1 9001"
 		res = create_mission_report([string: yaml])
 		pid = res[:pid]
@@ -95,6 +92,35 @@ defmodule CingiHeadquartersTest do
 		assert %{cmd: "ncat -l -i 1 9001", running: false, finished: true} = submission2
 	end
 
+	test "runs parallel submissions" do
+		yaml = Enum.map [1,2,3,4], &("  s#{&1}:\n    missions: ncat -l -i 1 900#{&1}")
+		yaml = ["missions:"] ++ yaml
+		yaml = Enum.join yaml, "\n"
+
+		res = create_mission_report([string: yaml])
+		pid = res[:pid]
+		Headquarters.resume(pid)
+
+		wait_for_submissions(res[:mission_pid], 4)
+		hq = Headquarters.get(pid)
+		assert length(hq.queued_missions) == 0
+		assert length(hq.running_missions) == 5
+
+		finish = &(Porcelain.spawn("bash", [ "-c", "echo -n blah#{&1} | nc localhost 900#{&1}"]))
+
+		finish.(3)
+		wait_for_submissions_finish(res[:mission_pid], 1)
+		finish.(2)
+		wait_for_submissions_finish(res[:mission_pid], 2)
+		finish.(4)
+		wait_for_submissions_finish(res[:mission_pid], 3)
+		finish.(1)
+		wait_for_submissions_finish(res[:mission_pid], 4)
+
+		mission = wait_for_exit_code(res[:mission_pid])
+		assert %{output: ["blah3", "blah2", "blah4", "blah1"], exit_code: 0} = mission
+	end
+
 	defp get_paused() do
 		{:ok, pid} = Headquarters.start_link()
 		Headquarters.pause(pid)
@@ -112,8 +138,18 @@ defmodule CingiHeadquartersTest do
 	defp wait_for_submissions(pid, n) do
 		mission = Mission.get(pid)
 		cond do
-			n == length(mission.submission_pids) -> mission
+			n <= length(mission.submission_pids) -> mission
 			true -> wait_for_submissions(pid, n)
+		end
+	end
+
+	defp wait_for_submissions_finish(pid, n) do
+		mission = Mission.get(pid)
+		pids = mission.submission_pids
+		sum = length(Enum.filter(pids, &(not is_nil(Mission.get(&1).exit_code))))
+		cond do
+			n <= sum -> mission
+			true -> wait_for_submissions_finish(pid, n)
 		end
 	end
 end
