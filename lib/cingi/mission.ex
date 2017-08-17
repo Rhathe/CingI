@@ -145,7 +145,7 @@ defmodule Cingi.Mission do
 	end
 
 	def handle_cast(:run_bash_process, mission) do
-		proc = Porcelain.spawn("./priv/bin/wrapper.sh", [mission.cmd], out: {:send, self()})
+		proc = Porcelain.spawn("./priv/bin/wrapper.sh", [mission.cmd], out: {:send, self()}, err: {:send, self()})
 		{:noreply, %Mission{mission | bash_process: proc}}
 	end
 
@@ -188,6 +188,11 @@ defmodule Cingi.Mission do
 	end
 
 	def handle_info({_pid, :data, :out, data}, mission) do
+		if mission.supermission_pid do Mission.send(mission.supermission_pid, self(), data) end
+		{:noreply, %Mission{mission | output: mission.output ++ [data]}}
+	end
+
+	def handle_info({_pid, :data, :err, data}, mission) do
 		if mission.supermission_pid do Mission.send(mission.supermission_pid, self(), data) end
 		{:noreply, %Mission{mission | output: mission.output ++ [data]}}
 	end
