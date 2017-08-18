@@ -191,7 +191,12 @@ defmodule Cingi.Mission do
 	end
 
 	def handle_cast(:run_bash_process, mission) do
-		proc = Porcelain.spawn("./priv/bin/wrapper.sh", [mission.cmd], out: {:send, self()}, err: {:send, self()})
+		{script, cmds} = case mission.input_file do
+			nil -> {"./priv/bin/wrapper.sh", [mission.cmd]}
+			_ -> {"./priv/bin/wrapper_with_input.sh", [mission.input_file, mission.cmd]}
+		end
+
+		proc = Porcelain.spawn(script, cmds, out: {:send, self()}, err: {:send, self()})
 		{:noreply, %Mission{mission | bash_process: proc}}
 	end
 
@@ -238,7 +243,8 @@ defmodule Cingi.Mission do
 	end
 
 	def handle_call({:get_output, _output_key}, _from, mission) do
-		{:reply, mission.output, mission}
+		output = Enum.map(mission.output, &(&1[:data]))
+		{:reply, output, mission}
 	end
 
 	#########

@@ -60,6 +60,21 @@ defmodule CingiHeadquartersTest do
 		assert [[data: "1\n", type: :out, timestamp: _, pid: nil]] = mission.output
 	end
 
+	test "runs missions with outputs" do
+		cmd_1 = "  - echo -e \"match1\\nignored2\\nmatch3\""
+		grep_cmd = "  - missions: grep match\n    input: $IN"
+
+		res = create_mission_report([string: "\nmissions:\n#{cmd_1}\n#{grep_cmd}\n  - echo end"])
+		pid = res[:pid]
+		Headquarters.resume(pid)
+		mission = wait_for_exit_code(res[:mission_pid])
+		assert [
+			[data: "match1\nignored2\nmatch3\n", type: :out, timestamp: _, pid: _],
+			[data: "match1\nmatch3\n", type: :out, timestamp: _, pid: _],
+			[data: "end\n", type: :out, timestamp: _, pid: _],
+		] = mission.output
+	end
+
 	test "runs sequential submissions" do
 		yaml = "missions:\n  - ncat -l -i 1 9000\n  - ncat -l -i 1 9001"
 		res = create_mission_report([string: yaml])

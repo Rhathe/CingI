@@ -8,6 +8,7 @@ defmodule CingiMissionTest do
 		assert %{
 			cmd: "echo",
 			output: [],
+			input_file: nil,
 			submissions_num: 0,
 			running: false
 		} = Mission.get(pid)
