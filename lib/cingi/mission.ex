@@ -45,8 +45,8 @@ defmodule Cingi.Mission do
 		GenServer.cast(pid, {:init_submission, submission_pid})
 	end
 
-	def finish_submission(pid, submission_pid, result) do
-		GenServer.cast(pid, {submission_pid, :result, result})
+	def send_result(pid, finished_pid, result) do
+		GenServer.cast(pid, {:finished, finished_pid, result})
 	end
 
 	def run_bash_process(pid) do
@@ -164,8 +164,30 @@ defmodule Cingi.Mission do
 	# CASTS #
 	#########
 
-	def handle_cast({pid, :result, result}, mission) do
-		handle_info({pid, :result, result}, mission)
+	def handle_cast({:finished, finished_pid, result}, mission) do
+		exit_codes = Enum.map(mission.submission_pids, fn m -> Mission.get(m).exit_code end)
+
+		exit_code = case length(exit_codes) do
+			0 -> result.status
+			_ -> cond do
+				length(exit_codes) != mission.submissions_num -> nil
+				nil in exit_codes -> nil
+				true -> Enum.at(exit_codes, 0)
+			end
+		end
+
+		case exit_code do
+			nil -> Mission.run_submissions(self(), finished_pid)
+			_ ->
+				super_pid = mission.supermission_pid
+				if super_pid do Mission.send_result(super_pid, self(), result) end
+		end
+
+		{:noreply, %Mission{mission |
+			exit_code: exit_code,
+			finished: true,
+			running: false
+		}}
 	end
 
 	def handle_cast(:init_input, mission) do
@@ -259,31 +281,8 @@ defmodule Cingi.Mission do
 		add_to_output(mission, [data: data, type: :err])
 	end
 
-	def handle_info({submission_pid, :result, result}, mission) do
-		finished(mission, result)
-
-		exit_codes = Enum.map(mission.submission_pids, fn m -> Mission.get(m).exit_code end)
-
-		exit_code = case length(exit_codes) do
-			0 -> result.status
-			_ -> cond do
-				length(exit_codes) != mission.submissions_num -> nil
-				nil in exit_codes -> nil
-				true -> Enum.at(exit_codes, 0)
-			end
-		end
-
-		if is_nil(exit_code) do Mission.run_submissions(self(), submission_pid) end
-
-		{:noreply, %Mission{mission |
-			exit_code: exit_code,
-			finished: true,
-			running: false
-		}}
-	end
-
-	defp finished(mission, result) do
-		mission_pid = mission.supermission_pid
-		if mission_pid do Mission.finish_submission(mission_pid, self(), result) end
+	def handle_info({_pid, :result, result}, mission) do
+		Mission.send_result(self(), self(), result)
+		{:noreply, mission}
 	end
 end

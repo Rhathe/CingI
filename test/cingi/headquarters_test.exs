@@ -76,7 +76,7 @@ defmodule CingiHeadquartersTest do
 	end
 
 	test "runs sequential submissions" do
-		yaml = "missions:\n  - ncat -l -i 1 9000\n  - ncat -l -i 1 9001"
+		yaml = "missions:\n  - ncat -l -i 1 8000\n  - ncat -l -i 1 8001"
 		res = create_mission_report([string: yaml])
 		pid = res[:pid]
 		Headquarters.resume(pid)
@@ -87,9 +87,9 @@ defmodule CingiHeadquartersTest do
 		assert length(hq.running_missions) == 2
 		assert %{output: [], exit_code: nil, submission_pids: [sm1]} = mission
 		submission1 = Mission.get(sm1)
-		assert %{cmd: "ncat -l -i 1 9000", running: true, finished: false} = submission1
+		assert %{cmd: "ncat -l -i 1 8000", running: true, finished: false} = submission1
 
-		Porcelain.spawn("bash", [ "-c", "echo -n blah1 | nc localhost 9000"])
+		Porcelain.spawn("bash", [ "-c", "echo -n blah1 | nc localhost 8000"])
 		mission = wait_for_submissions(res[:mission_pid], 2)
 		hq = Headquarters.get(pid)
 		assert length(hq.queued_missions) == 0
@@ -100,10 +100,10 @@ defmodule CingiHeadquartersTest do
 		submission1 = Mission.get(sm1)
 		submission2 = Mission.get(sm2)
 
-		assert %{cmd: "ncat -l -i 1 9000", running: false, finished: true} = submission1
-		assert %{cmd: "ncat -l -i 1 9001", running: true, finished: false} = submission2
+		assert %{cmd: "ncat -l -i 1 8000", running: false, finished: true} = submission1
+		assert %{cmd: "ncat -l -i 1 8001", running: true, finished: false} = submission2
 
-		Porcelain.spawn("bash", [ "-c", "echo -n blah2 | nc localhost 9001"])
+		Porcelain.spawn("bash", [ "-c", "echo -n blah2 | nc localhost 8001"])
 		mission = wait_for_exit_code(res[:mission_pid])
 
 		assert %{output: output, exit_code: 0} = mission
@@ -113,7 +113,7 @@ defmodule CingiHeadquartersTest do
 		] = output
 
 		submission2 = Mission.get(sm2)
-		assert %{cmd: "ncat -l -i 1 9001", running: false, finished: true} = submission2
+		assert %{cmd: "ncat -l -i 1 8001", running: false, finished: true} = submission2
 	end
 
 	test "runs parallel submissions" do
