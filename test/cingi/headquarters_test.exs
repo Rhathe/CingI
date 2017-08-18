@@ -81,19 +81,21 @@ defmodule CingiHeadquartersTest do
 		pid = res[:pid]
 		Headquarters.resume(pid)
 
-		mission = wait_for_submissions(res[:mission_pid], 1)
-		hq = Headquarters.get(pid)
+		hq = wait_for_running_missions(pid, 2)
 		assert length(hq.queued_missions) == 0
 		assert length(hq.running_missions) == 2
+
+		mission = Mission.get(res[:mission_pid])
 		assert %{output: [], exit_code: nil, submission_pids: [sm1]} = mission
 		submission1 = Mission.get(sm1)
 		assert %{cmd: "ncat -l -i 1 8000", running: true, finished: false} = submission1
 
 		Porcelain.spawn("bash", [ "-c", "echo -n blah1 | nc localhost 8000"])
-		mission = wait_for_submissions(res[:mission_pid], 2)
-		hq = Headquarters.get(pid)
+		hq = wait_for_running_missions(pid, 3)
 		assert length(hq.queued_missions) == 0
 		assert length(hq.running_missions) == 3
+
+		mission = Mission.get(res[:mission_pid])
 		assert %{output: output, exit_code: nil, submission_pids: [sm1, sm2]} = mission
 		assert [[data: "blah1", type: :out, timestamp: _, pid: ^sm1]] = output
 
@@ -125,8 +127,7 @@ defmodule CingiHeadquartersTest do
 		pid = res[:pid]
 		Headquarters.resume(pid)
 
-		wait_for_submissions(res[:mission_pid], 4)
-		hq = Headquarters.get(pid)
+		hq = wait_for_running_missions(pid, 5)
 		assert length(hq.queued_missions) == 0
 		assert length(hq.running_missions) == 5
 
@@ -170,11 +171,11 @@ defmodule CingiHeadquartersTest do
 		end
 	end
 
-	defp wait_for_submissions(pid, n) do
-		mission = Mission.get(pid)
+	defp wait_for_running_missions(pid, n) do
+		hq = Headquarters.get(pid)
 		cond do
-			n <= length(mission.submission_pids) -> mission
-			true -> wait_for_submissions(pid, n)
+			n <= length(hq.running_missions) -> hq
+			true -> wait_for_running_missions(pid, n)
 		end
 	end
 
