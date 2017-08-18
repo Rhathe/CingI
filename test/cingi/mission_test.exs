@@ -33,7 +33,7 @@ defmodule CingiMissionTest do
 		check_exit_code(pid)
 		assert %{
 			cmd: "ncat -l -i 1 9000",
-			output: ["blah"],
+			output: [[data: "blah", type: :out, timestamp: _, pid: nil]],
 			finished: true,
 			running: false,
 			exit_code: 0
@@ -46,7 +46,7 @@ defmodule CingiMissionTest do
 		check_exit_code(pid)
 		assert %{
 			cmd: "echo",
-			output: ["\n"],
+			output: [[data: "\n", type: :out, timestamp: _, pid: nil]],
 			finished: true,
 			running: false,
 			exit_code: 0
@@ -59,7 +59,7 @@ defmodule CingiMissionTest do
 		check_exit_code(pid)
 		assert %{
 			cmd: "echo blah",
-			output: ["blah\n"],
+			output: [[data: "blah\n", type: :out, timestamp: _, pid: nil]],
 			finished: true,
 			running: false,
 			exit_code: 0
@@ -67,12 +67,15 @@ defmodule CingiMissionTest do
 	end
 
 	test "runs mission with args and ampersands" do
-		pid = mission_with_cmd("echo blah && sleep 0.1 && echo blah2")
+		pid = mission_with_cmd("echo blah1 && sleep 0.1 && echo blah2")
 		Mission.run(pid)
 		check_exit_code(pid)
 		assert %{
-			cmd: "echo blah && sleep 0.1 && echo blah2",
-			output: ["blah\n", "blah2\n"],
+			cmd: "echo blah1 && sleep 0.1 && echo blah2",
+			output: [
+				[data: "blah1\n", type: :out, timestamp: _, pid: nil],
+				[data: "blah2\n", type: :out, timestamp: _, pid: nil]
+			],
 			finished: true,
 			running: false,
 			exit_code: 0

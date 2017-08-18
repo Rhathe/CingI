@@ -34,8 +34,8 @@ defmodule Cingi.Mission do
 		GenServer.call(pid, {:run, headquarters_pid})
 	end
 
-	def send(pid, submission_pid, data) do
-		GenServer.cast(pid, {submission_pid, :data, :out, data})
+	def send(pid, data) do
+		GenServer.cast(pid, {:data_and_metadata, data})
 	end
 
 	def initialized_submission(pid, submission_pid) do
@@ -131,12 +131,21 @@ defmodule Cingi.Mission do
 		end
 	end
 
-	def handle_cast({pid, :data, :out, data}, mission) do
-		handle_info({pid, :data, :out, data}, mission)
+	defp add_to_output(mission, opts) do
+		opts = opts ++ [timestamp: :os.system_time(:millisecond)]
+		if mission.supermission_pid do
+			Mission.send(mission.supermission_pid, opts ++ [pid: self()])
+		end
+		Mission.send(self(), opts ++ [pid: nil])
+		{:noreply, mission}
 	end
 
 	def handle_cast({pid, :result, result}, mission) do
 		handle_info({pid, :result, result}, mission)
+	end
+
+	def handle_cast({:data_and_metadata, data}, mission) do
+		{:noreply, %Mission{mission | output: mission.output ++ [data]}}
 	end
 
 	def handle_cast({:init_submission, pid}, mission) do
@@ -188,13 +197,11 @@ defmodule Cingi.Mission do
 	end
 
 	def handle_info({_pid, :data, :out, data}, mission) do
-		if mission.supermission_pid do Mission.send(mission.supermission_pid, self(), data) end
-		{:noreply, %Mission{mission | output: mission.output ++ [data]}}
+		add_to_output(mission, [data: data, type: :out])
 	end
 
 	def handle_info({_pid, :data, :err, data}, mission) do
-		if mission.supermission_pid do Mission.send(mission.supermission_pid, self(), data) end
-		{:noreply, %Mission{mission | output: mission.output ++ [data]}}
+		add_to_output(mission, [data: data, type: :err])
 	end
 
 	def handle_info({_pid, :result, result}, mission) do

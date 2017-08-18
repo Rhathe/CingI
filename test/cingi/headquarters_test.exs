@@ -57,7 +57,7 @@ defmodule CingiHeadquartersTest do
 		assert length(hq.queued_missions) == 0
 		assert length(hq.running_missions) == 1
 		mission = wait_for_exit_code(res[:mission_pid])
-		assert ["1\n"] = mission.output
+		assert [[data: "1\n", type: :out, timestamp: _, pid: nil]] = mission.output
 	end
 
 	test "runs sequential submissions" do
@@ -79,15 +79,24 @@ defmodule CingiHeadquartersTest do
 		hq = Headquarters.get(pid)
 		assert length(hq.queued_missions) == 0
 		assert length(hq.running_missions) == 3
-		assert %{output: ["blah1"], exit_code: nil, submission_pids: [sm1, sm2]} = mission
+		assert %{output: output, exit_code: nil, submission_pids: [sm1, sm2]} = mission
+		assert [[data: "blah1", type: :out, timestamp: _, pid: ^sm1]] = output
+
 		submission1 = Mission.get(sm1)
 		submission2 = Mission.get(sm2)
+
 		assert %{cmd: "ncat -l -i 1 9000", running: false, finished: true} = submission1
 		assert %{cmd: "ncat -l -i 1 9001", running: true, finished: false} = submission2
 
 		Porcelain.spawn("bash", [ "-c", "echo -n blah2 | nc localhost 9001"])
 		mission = wait_for_exit_code(res[:mission_pid])
-		assert %{output: ["blah1", "blah2"], exit_code: 0} = mission
+
+		assert %{output: output, exit_code: 0} = mission
+		assert [
+			[data: "blah1", type: :out, timestamp: _, pid: ^sm1],
+			[data: "blah2", type: :out, timestamp: _, pid: ^sm2]
+		] = output
+
 		submission2 = Mission.get(sm2)
 		assert %{cmd: "ncat -l -i 1 9001", running: false, finished: true} = submission2
 	end
@@ -118,7 +127,18 @@ defmodule CingiHeadquartersTest do
 		wait_for_submissions_finish(res[:mission_pid], 4)
 
 		mission = wait_for_exit_code(res[:mission_pid])
-		assert %{output: ["blah3", "blah2", "blah4", "blah1"], exit_code: 0} = mission
+		assert %{output: [
+			[data: "blah3", type: :out, timestamp: _, pid: pid1],
+			[data: "blah2", type: :out, timestamp: _, pid: pid2],
+			[data: "blah4", type: :out, timestamp: _, pid: pid3],
+			[data: "blah1", type: :out, timestamp: _, pid: pid4]
+		], exit_code: 0} = mission
+
+		assert pid1 != pid2 != pid3 != pid4
+		assert pid1 in mission.submission_pids
+		assert pid2 in mission.submission_pids
+		assert pid3 in mission.submission_pids
+		assert pid4 in mission.submission_pids
 	end
 
 	defp get_paused() do
