@@ -99,7 +99,8 @@ defmodule Cingi.Mission do
 		end}
 
 		case mission do
-			%{cmd: nil, submissions: nil} -> raise "Must have cmd or submissions"
+			%{cmd: nil, submissions: nil} ->
+				raise "Must have cmd or submissions, got #{inspect(opts[:decoded_yaml])}"
 			_ -> :ok
 		end
 
@@ -127,21 +128,15 @@ defmodule Cingi.Mission do
 	defp construct_opts_from_map(opts) do
 		map = opts[:decoded_yaml]
 		keys = Map.keys(map)
-		first_key = Enum.at(keys, 0)
-		first_val_map = case map[first_key] do
-			%{} -> map[first_key]
-			_ -> %{"missions" => map[first_key]}
-		end
 
 		opts ++ case length(keys) do
 			0 -> raise "Empty map?"
-			1 -> construct_map_opts(Map.merge(%{"name" => first_key}, first_val_map))
 			_ -> construct_map_opts(map)
 		end
 	end
 
 	defp construct_map_opts(map) do
-		new_map = [key: map["name"], input_file: map["input"]]
+		new_map = [key: map["name"] || "", input_file: map["input"]]
 		submissions = map["missions"]
 
 		new_map ++ cond do
@@ -149,15 +144,6 @@ defmodule Cingi.Mission do
 			is_list(submissions) -> [submissions: submissions]
 			true -> [cmd: submissions]
 		end
-	end
-
-	defp add_to_output(mission, opts) do
-		opts = opts ++ [timestamp: :os.system_time(:millisecond)]
-		if mission.supermission_pid do
-			Mission.send(mission.supermission_pid, opts ++ [pid: self()])
-		end
-		Mission.send(self(), opts ++ [pid: nil])
-		{:noreply, mission}
 	end
 
 	#########
@@ -204,6 +190,10 @@ defmodule Cingi.Mission do
 	end
 
 	def handle_cast({:data_and_metadata, data}, mission) do
+		if mission.supermission_pid do
+			new_data = Keyword.delete(data, :pid)
+			Mission.send(mission.supermission_pid, new_data ++ [pid: self()])
+		end
 		{:noreply, %Mission{mission | output: mission.output ++ [data]}}
 	end
 
@@ -224,7 +214,7 @@ defmodule Cingi.Mission do
 
 	def handle_cast({:run_submissions, prev_pid}, mission) do
 		[running, remaining] = case mission.submissions do
-			%{} -> [Enum.map(mission.submissions, fn({k, v}) -> %{k => v} end), %{}]
+			%{} -> [Enum.map(mission.submissions, &convert_parallel_mission/1), %{}]
 			[a|b] -> [[a], b]
 			[] -> [[], []]
 		end
@@ -235,6 +225,15 @@ defmodule Cingi.Mission do
 		end
 
 		{:noreply, %Mission{mission | submissions: remaining}}
+	end
+
+	defp convert_parallel_mission({key, value}) do
+		case value do
+			%{} -> Map.put_new(value, "name", key)
+			[_|_] -> raise "Can't be a list"
+			[] -> raise "Can't be a list"
+			_ -> %{"missions" => value}
+		end
 	end
 
 	#########
@@ -285,4 +284,11 @@ defmodule Cingi.Mission do
 		Mission.send_result(self(), self(), result)
 		{:noreply, mission}
 	end
+
+	defp add_to_output(mission, opts) do
+		opts = opts ++ [timestamp: :os.system_time(:millisecond)]
+		Mission.send(self(), opts ++ [pid: nil])
+		{:noreply, mission}
+	end
+
 end

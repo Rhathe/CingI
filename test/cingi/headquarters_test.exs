@@ -119,7 +119,7 @@ defmodule CingiHeadquartersTest do
 	end
 
 	test "runs parallel submissions" do
-		yaml = Enum.map [1,2,3,4], &("  s#{&1}:\n    missions: ncat -l -i 1 900#{&1}")
+		yaml = Enum.map [1,2,3,4], &("  s#{&1}: ncat -l -i 1 900#{&1}")
 		yaml = ["missions:"] ++ yaml
 		yaml = Enum.join yaml, "\n"
 
@@ -155,6 +155,18 @@ defmodule CingiHeadquartersTest do
 		assert pid2 in mission.submission_pids
 		assert pid3 in mission.submission_pids
 		assert pid4 in mission.submission_pids
+	end
+
+	test "runs example file" do
+		res = create_mission_report([file: "test/mission_plans/example1.plan"])
+		pid = res[:pid]
+		Headquarters.resume(pid)
+		mission = wait_for_exit_code(res[:mission_pid])
+		output = mission.output |> Enum.map(&(&1[:data]))
+		assert ["beginning\n", a, b, c, d, e, f, "match 1\nmatch 3\nmatch 5\n", "end\n"] = output
+		l1 = Enum.sort(["match 1\n", "ignored 2\n", "match 3\n", "ignored 4\n", "match 5\n", "ignored 6\n"])
+		l2 = Enum.sort([a, b, c, d, e, f])
+		assert ^l1 = l2
 	end
 
 	defp get_paused() do

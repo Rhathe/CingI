@@ -16,7 +16,7 @@ defmodule CingiMissionTest do
 
 	test "creates empty mission fails" do
 		Process.flag :trap_exit, true
-		{:error, {%RuntimeError{message: "Must have cmd or submissions"}, _}}  = Mission.start_link([])
+		{:error, {%RuntimeError{message: "Must have cmd or submissions, got nil"}, _}}  = Mission.start_link([])
 	end
 
 	test "runs mission with appropriate running/finished flag" do
@@ -102,32 +102,12 @@ defmodule CingiMissionTest do
 		assert mission.submissions == nil
 	end
 
-	test "constructs with yaml map and just command" do
-		{:ok, pid} = Mission.start_link([decoded_yaml: %{
-			"any_key" => "echo 1"
-		}])
-		mission = Mission.get(pid)
-		assert mission.key == "any_key"
-		assert mission.cmd == "echo 1"
-		assert mission.submissions == nil
-	end
-
-	test "constructs with yaml map and just submissions" do
-		{:ok, pid} = Mission.start_link([decoded_yaml: %{
-			"any_key" => ["echo 1", "echo 2"]
-		}])
-		mission = Mission.get(pid)
-		assert mission.key == "any_key"
-		assert mission.cmd == nil
-		assert mission.submissions == ["echo 1", "echo 2"]
-	end
-
 	test "constructs with yaml map and just command, key is missions" do
 		{:ok, pid} = Mission.start_link([decoded_yaml: %{
 			"missions" => "echo 1"
 		}])
 		mission = Mission.get(pid)
-		assert mission.key == "missions"
+		assert mission.key == ""
 		assert mission.cmd == "echo 1"
 		assert mission.submissions == nil
 	end
@@ -139,9 +119,9 @@ defmodule CingiMissionTest do
 			}
 		}])
 		mission = Mission.get(pid)
-		assert mission.key == "missions"
-		assert mission.cmd == "echo 1"
-		assert mission.submissions == nil
+		assert mission.key == ""
+		assert mission.cmd == nil
+		assert mission.submissions == %{"missions" => "echo 1"}
 	end
 
 	test "constructs with yaml map and array of commands" do
