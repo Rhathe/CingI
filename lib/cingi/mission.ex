@@ -7,6 +7,7 @@ defmodule Cingi.Mission do
 		key: "",
 
 		report_pid: nil,
+		prev_mission_pid: nil,
 		supermission_pid: nil,
 		submission_pids: [],
 		headquarters_pid: nil,
@@ -16,6 +17,8 @@ defmodule Cingi.Mission do
 		bash_process: nil,
 		submissions: nil,
 		submissions_num: nil,
+
+		input_file: nil,
 		output: [],
 
 		running: false,
@@ -50,8 +53,15 @@ defmodule Cingi.Mission do
 		GenServer.cast(pid, :run_bash_process)
 	end
 
-	def run_submissions(pid) do
-		GenServer.cast(pid, :run_submissions)
+	def run_submissions(pid, prev_pid \\ nil) do
+		GenServer.cast(pid, {:run_submissions, prev_pid})
+	end
+
+	def init_input(pid) do
+		case pid do
+			nil -> nil
+			_ -> GenServer.cast(pid, :init_input)
+		end
 	end
 
 	def pause(pid) do
@@ -64,6 +74,13 @@ defmodule Cingi.Mission do
 
 	def get(pid) do
 		GenServer.call(pid, :get)
+	end
+
+	def get_output(pid, output_key) do
+		case pid do
+			nil -> []
+			_ -> GenServer.call(pid, {:get_output, output_key})
+		end
 	end
 
 	# Server Callbacks
@@ -85,6 +102,9 @@ defmodule Cingi.Mission do
 			%{cmd: nil, submissions: nil} -> raise "Must have cmd or submissions"
 			_ -> :ok
 		end
+
+		# Construct input file from previous output
+		Mission.init_input(self())
 
 		mission_pid = mission.supermission_pid
 		if mission_pid do Mission.initialized_submission(mission_pid, self()) end
@@ -121,7 +141,7 @@ defmodule Cingi.Mission do
 	end
 
 	defp construct_map_opts(map) do
-		new_map = [key: map["name"]]
+		new_map = [key: map["name"], input_file: map["input"]]
 		submissions = map["missions"]
 
 		new_map ++ cond do
@@ -140,8 +160,25 @@ defmodule Cingi.Mission do
 		{:noreply, mission}
 	end
 
+	#########
+	# CASTS #
+	#########
+
 	def handle_cast({pid, :result, result}, mission) do
 		handle_info({pid, :result, result}, mission)
+	end
+
+	def handle_cast(:init_input, mission) do
+		input_file = case mission.input_file do
+			"$" <> output_key ->
+				Temp.track!
+				output = Mission.get_output(mission.prev_mission_pid, output_key)
+				{:ok, fd, path} = Temp.open
+				IO.write fd, output
+				path
+			_ -> mission.input_file
+		end
+		{:noreply, %Mission{mission | input_file: input_file}}
 	end
 
 	def handle_cast({:data_and_metadata, data}, mission) do
@@ -158,7 +195,7 @@ defmodule Cingi.Mission do
 		{:noreply, %Mission{mission | bash_process: proc}}
 	end
 
-	def handle_cast(:run_submissions, mission) do
+	def handle_cast({:run_submissions, prev_pid}, mission) do
 		[running, remaining] = case mission.submissions do
 			%{} -> [Enum.map(mission.submissions, fn({k, v}) -> %{k => v} end), %{}]
 			[a|b] -> [[a], b]
@@ -166,12 +203,16 @@ defmodule Cingi.Mission do
 		end
 
 		for submission <- running do
-			opts = [decoded_yaml: submission, supermission_pid: self()]
+			opts = [decoded_yaml: submission, supermission_pid: self(), prev_mission_pid: prev_pid]
 			MissionReport.init_mission(mission.report_pid, opts)
 		end
 
 		{:noreply, %Mission{mission | submissions: remaining}}
 	end
+
+	#########
+	# CALLS #
+	#########
 
 	def handle_call({:run, headquarters_pid}, _from, mission) do
 		cond do
@@ -196,6 +237,14 @@ defmodule Cingi.Mission do
 		{:reply, mission, mission}
 	end
 
+	def handle_call({:get_output, _output_key}, _from, mission) do
+		{:reply, mission.output, mission}
+	end
+
+	#########
+	# INFOS #
+	#########
+
 	def handle_info({_pid, :data, :out, data}, mission) do
 		add_to_output(mission, [data: data, type: :out])
 	end
@@ -204,7 +253,7 @@ defmodule Cingi.Mission do
 		add_to_output(mission, [data: data, type: :err])
 	end
 
-	def handle_info({_pid, :result, result}, mission) do
+	def handle_info({submission_pid, :result, result}, mission) do
 		finished(mission, result)
 
 		exit_codes = Enum.map(mission.submission_pids, fn m -> Mission.get(m).exit_code end)
@@ -218,7 +267,7 @@ defmodule Cingi.Mission do
 			end
 		end
 
-		if is_nil(exit_code) do Mission.run_submissions(self()) end
+		if is_nil(exit_code) do Mission.run_submissions(self(), submission_pid) end
 
 		{:noreply, %Mission{mission |
 			exit_code: exit_code,
