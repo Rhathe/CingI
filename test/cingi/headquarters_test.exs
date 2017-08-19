@@ -39,7 +39,7 @@ defmodule CingiHeadquartersTest do
 
 	test "can create mission report" do
 		res = create_mission_report([string: "missions: echo 1"])
-		assert %{"missions" => "echo 1"} = res[:report].mission_statements
+		assert %{"missions" => "echo 1"} = res[:report].plan
 		assert res[:report_pid] in res[:hq].mission_reports
 	end
 

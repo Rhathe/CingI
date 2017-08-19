@@ -4,7 +4,7 @@ defmodule Cingi.MissionReport do
 	use GenServer
 
 	defstruct [
-		mission_statements: %{},
+		plan: %{},
 		headquarters: nil,
 		missions: []
 	]
@@ -43,7 +43,7 @@ defmodule Cingi.MissionReport do
 		name = Map.get(map, "name", "MAIN")
 		map = Map.put(map, "name", name)
 		MissionReport.init_mission(self(), [decoded_yaml: map])
-		%MissionReport{mission_statements: map, headquarters: hq}
+		%MissionReport{plan: map, headquarters: hq}
 	end
 
 	def handle_cast({:init_mission, opts}, report) do
