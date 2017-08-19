@@ -107,7 +107,7 @@ defmodule CingiMissionTest do
 			"missions" => "echo 1"
 		}])
 		mission = Mission.get(pid)
-		assert mission.key == ""
+		assert mission.key == "echo_1"
 		assert mission.cmd == "echo 1"
 		assert mission.submissions == nil
 	end

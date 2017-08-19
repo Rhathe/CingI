@@ -92,11 +92,17 @@ defmodule Cingi.Mission do
 		end
 
 		mission = struct(Mission, opts)
-		mission = %Mission{mission | submissions_num: case mission.submissions do
-			%{} -> length(Map.keys(mission.submissions))
-			[_|_] -> length(mission.submissions)
-			_ -> 0
-		end}
+		mission = %Mission{mission |
+			submissions_num: case mission.submissions do
+				%{} -> length(Map.keys(mission.submissions))
+				[_|_] -> length(mission.submissions)
+				_ -> 0
+			end,
+			key: case mission.key do
+				"" -> construct_key(mission.cmd) 
+				_ -> mission.key
+			end
+		}
 
 		case mission do
 			%{cmd: nil, submissions: nil} ->
@@ -121,7 +127,7 @@ defmodule Cingi.Mission do
 
 		case decoded_yaml do
 			%{} -> construct_opts_from_map(opts)
-			_ -> opts ++ [key: construct_key(decoded_yaml), cmd: decoded_yaml]
+			_ -> opts ++ [cmd: decoded_yaml]
 		end
 	end
 
