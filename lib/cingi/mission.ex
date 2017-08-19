@@ -204,8 +204,9 @@ defmodule Cingi.Mission do
 
 	def handle_cast({:data_and_metadata, data}, mission) do
 		if mission.supermission_pid do
+			pids = [self()] ++ data[:pid]
 			new_data = Keyword.delete(data, :pid)
-			Mission.send(mission.supermission_pid, new_data ++ [pid: self()])
+			Mission.send(mission.supermission_pid, new_data ++ [pid: pids])
 		else
 			MissionReport.send_data(mission.report_pid, data)
 		end
@@ -303,7 +304,7 @@ defmodule Cingi.Mission do
 
 	defp add_to_output(mission, opts) do
 		opts = opts ++ [timestamp: :os.system_time(:millisecond)]
-		Mission.send(self(), opts ++ [pid: nil])
+		Mission.send(self(), opts ++ [pid: []])
 		{:noreply, mission}
 	end
 

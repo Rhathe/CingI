@@ -34,7 +34,7 @@ defmodule CingiMissionTest do
 		check_exit_code(pid)
 		assert %{
 			cmd: "ncat -l -i 1 9000",
-			output: [[data: "blah", type: :out, timestamp: _, pid: nil]],
+			output: [[data: "blah", type: :out, timestamp: _, pid: []]],
 			finished: true,
 			running: false,
 			exit_code: 0
@@ -47,7 +47,7 @@ defmodule CingiMissionTest do
 		check_exit_code(pid)
 		assert %{
 			cmd: "echo",
-			output: [[data: "\n", type: :out, timestamp: _, pid: nil]],
+			output: [[data: "\n", type: :out, timestamp: _, pid: []]],
 			finished: true,
 			running: false,
 			exit_code: 0
@@ -60,7 +60,7 @@ defmodule CingiMissionTest do
 		check_exit_code(pid)
 		assert %{
 			cmd: "echo blah",
-			output: [[data: "blah\n", type: :out, timestamp: _, pid: nil]],
+			output: [[data: "blah\n", type: :out, timestamp: _, pid: []]],
 			finished: true,
 			running: false,
 			exit_code: 0
@@ -74,8 +74,8 @@ defmodule CingiMissionTest do
 		assert %{
 			cmd: "echo blah1 && sleep 0.1 && echo blah2",
 			output: [
-				[data: "blah1\n", type: :out, timestamp: _, pid: nil],
-				[data: "blah2\n", type: :out, timestamp: _, pid: nil]
+				[data: "blah1\n", type: :out, timestamp: _, pid: []],
+				[data: "blah2\n", type: :out, timestamp: _, pid: []]
 			],
 			finished: true,
 			running: false,
@@ -86,7 +86,7 @@ defmodule CingiMissionTest do
 	test "constructs with yaml command" do
 		{:ok, pid} = Mission.start_link([decoded_yaml: "echo 1"])
 		mission = Mission.get(pid)
-		assert mission.key == "echo 1"
+		assert mission.key == "echo_1"
 		assert mission.cmd == "echo 1"
 		assert mission.submissions == nil
 	end

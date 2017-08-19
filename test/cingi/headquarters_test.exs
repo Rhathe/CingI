@@ -57,7 +57,7 @@ defmodule CingiHeadquartersTest do
 		assert length(hq.queued_missions) == 0
 		assert length(hq.running_missions) == 1
 		mission = wait_for_exit_code(res[:mission_pid])
-		assert [[data: "1\n", type: :out, timestamp: _, pid: nil]] = mission.output
+		assert [[data: "1\n", type: :out, timestamp: _, pid: []]] = mission.output
 	end
 
 	test "runs missions with outputs" do
@@ -97,7 +97,7 @@ defmodule CingiHeadquartersTest do
 
 		mission = Mission.get(res[:mission_pid])
 		assert %{output: output, exit_code: nil, submission_pids: [sm1, sm2]} = mission
-		assert [[data: "blah1", type: :out, timestamp: _, pid: ^sm1]] = output
+		assert [[data: "blah1", type: :out, timestamp: _, pid: [^sm1]]] = output
 
 		submission1 = Mission.get(sm1)
 		submission2 = Mission.get(sm2)
@@ -110,8 +110,8 @@ defmodule CingiHeadquartersTest do
 
 		assert %{output: output, exit_code: 0} = mission
 		assert [
-			[data: "blah1", type: :out, timestamp: _, pid: ^sm1],
-			[data: "blah2", type: :out, timestamp: _, pid: ^sm2]
+			[data: "blah1", type: :out, timestamp: _, pid: [^sm1]],
+			[data: "blah2", type: :out, timestamp: _, pid: [^sm2]]
 		] = output
 
 		submission2 = Mission.get(sm2)
@@ -144,10 +144,10 @@ defmodule CingiHeadquartersTest do
 
 		mission = wait_for_exit_code(res[:mission_pid])
 		assert %{output: [
-			[data: "blah3", type: :out, timestamp: _, pid: pid1],
-			[data: "blah2", type: :out, timestamp: _, pid: pid2],
-			[data: "blah4", type: :out, timestamp: _, pid: pid3],
-			[data: "blah1", type: :out, timestamp: _, pid: pid4]
+			[data: "blah3", type: :out, timestamp: _, pid: [pid1]],
+			[data: "blah2", type: :out, timestamp: _, pid: [pid2]],
+			[data: "blah4", type: :out, timestamp: _, pid: [pid3]],
+			[data: "blah1", type: :out, timestamp: _, pid: [pid4]]
 		], exit_code: 0} = mission
 
 		assert pid1 != pid2 != pid3 != pid4
