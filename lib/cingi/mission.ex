@@ -166,7 +166,13 @@ defmodule Cingi.Mission do
 			nil -> Mission.run_submissions(self(), finished_pid)
 			_ ->
 				super_pid = mission.supermission_pid
-				if super_pid do Mission.send_result(super_pid, self(), result) end
+				report_pid = mission.report_pid
+
+				cond do
+					super_pid -> Mission.send_result(super_pid, self(), result)
+					report_pid -> MissionReport.finished_mission(report_pid, self())
+					true -> :ok
+				end
 		end
 
 		{:noreply, %Mission{mission |
@@ -193,7 +199,10 @@ defmodule Cingi.Mission do
 		if mission.supermission_pid do
 			new_data = Keyword.delete(data, :pid)
 			Mission.send(mission.supermission_pid, new_data ++ [pid: self()])
+		else
+			MissionReport.send_data(mission.report_pid, data)
 		end
+
 		{:noreply, %Mission{mission | output: mission.output ++ [data]}}
 	end
 

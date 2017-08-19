@@ -12,8 +12,8 @@ defmodule Cingi.Headquarters do
 		finished_missions: []
 	]
 
-	def start_link(opts \\ nil) do
-		GenServer.start_link(__MODULE__, opts)
+	def start_link(opts \\ []) do
+		GenServer.start_link(__MODULE__, [], opts)
 	end
 
 	def create_report(pid, yaml_tuple) do

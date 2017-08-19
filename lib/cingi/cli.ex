@@ -8,12 +8,18 @@ defmodule Cingi.CLI do
 	end
 
 	def process(options) do
-		IO.puts "Hello #{options[:name]}"
+		yaml_opts = [file: options[:file], cli_pid: self()]
+		Cingi.Headquarters.create_report :main_hq, yaml_opts
+		receive do
+			{:report, report_pid} -> IO.puts "finished"
+		end
 	end
 
 	defp parse_args(args) do
 		{options, _, _} = OptionParser.parse(args,
-			switches: [name: :string]
+			switches: [
+				file: :string
+			]
 		)
 		options
 	end

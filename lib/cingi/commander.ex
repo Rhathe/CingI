@@ -10,6 +10,7 @@ defmodule Cingi.Commander do
 	"""
 
 	alias Cingi.Commander
+	use GenServer
 
 	defstruct [
 		orders: nil,
@@ -17,4 +18,16 @@ defmodule Cingi.Commander do
 		transforming_mission_pid: nil,
 		headquarters_pid: nil,
 	]
+
+	# Client API
+
+	def start_link(opts) do
+		GenServer.start_link(__MODULE__, opts)
+	end
+
+	# Server Callbacks
+
+	def init(_) do
+		{:ok, %Commander{}}
+	end
 end
