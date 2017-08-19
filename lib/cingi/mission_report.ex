@@ -75,11 +75,12 @@ defmodule Cingi.MissionReport do
 
 	def handle_cast({:data, data}, report) do
 		if (report.cli_pid) do
-			line = case data[:pid] do
-				nil -> data[:data]
-				_ -> "[#{Mission.get(data[:pid]).key}] #{data[:data]}"
-			end
-			IO.puts line
+			case data[:pid] do
+				nil -> [data[:data]]
+				_ ->
+					split = String.split(data[:data], "\n")
+					split |> Enum.map(&("[#{Mission.get(data[:pid]).key}] #{&1}"))
+			end |> Enum.map(&(IO.puts &1))
 		end
 
 		{:noreply, report}

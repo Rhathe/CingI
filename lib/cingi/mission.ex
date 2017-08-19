@@ -121,7 +121,7 @@ defmodule Cingi.Mission do
 
 		case decoded_yaml do
 			%{} -> construct_opts_from_map(opts)
-			_ -> opts ++ [key: decoded_yaml, cmd: decoded_yaml]
+			_ -> opts ++ [key: construct_key(decoded_yaml), cmd: decoded_yaml]
 		end
 	end
 
@@ -135,8 +135,15 @@ defmodule Cingi.Mission do
 		end
 	end
 
+	defp construct_key(name) do
+		name = name || ""
+		name = String.replace(name, ~r/ /, "_")
+		name = String.replace(name, ~r/[^_a-zA-Z0-9]/, "")
+		String.downcase(name)
+	end
+
 	defp construct_map_opts(map) do
-		new_map = [key: map["name"] || "", input_file: map["input"]]
+		new_map = [key: construct_key(map["name"]), input_file: map["input"]]
 		submissions = map["missions"]
 
 		new_map ++ cond do
