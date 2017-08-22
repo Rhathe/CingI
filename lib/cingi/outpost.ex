@@ -6,83 +6,130 @@ defmodule Cingi.Outpost do
 	"""
 
 	alias Cingi.Outpost
+	alias Cingi.Mission
 	use GenServer
 
 	defstruct [
+		name: nil,
+		node: nil,
 		setup_steps: nil,
-		slave: nil,
+		bash_process: nil,
+		alternates: nil,
+		is_setup: false,
 	]
 
 	# Client API
 
-	def start_link(opts) do
-		GenServer.start_link(__MODULE__, opts)
+	def start_link(args \\ []) do
+		opts = case args[:name] do
+			nil -> []
+			name -> [name: name]
+		end
+		GenServer.start_link(__MODULE__, args, opts)
 	end
 
 	def get(pid) do
 		GenServer.call(pid, :get)
 	end
 
-	def test do
-		{:ok, pid} = start_link(name: "sfafasf")
-		outpost = get(pid)
-		call outpost.slave, :shell_default, :cd , ["/tmp"]
-		#call outpost.slave, Outpost, :blah, []
-		#call outpost.slave, System, :cmd, ["pwd", []]
+	def get_on_same_node(pid) do
+		GenServer.call(pid, {:outpost_on_node, Node.self})
 	end
 
-	def blah do
-		result = Porcelain.exec("ls", [])
-		IO.inspect result.out
+	def get_or_create_on_same_node(pid) do
+		outpost = get_on_same_node(pid)
+		"""
+		{:ok, new_pid} = case GenServer.call(pid, {:outpost_on_node, Node.self}) do
+			nil -> start_link(original: pid)
+			new_pid -> {:ok, new_pid}
+		end
+		new_pid
+		"""
+	end
+
+	def update_alternates(pid) do
+		GenServer.cast(pid, :update_alternates)
 	end
 
 	# Server Callbacks
 
 	def init(opts) do
-		host = get_host opts[:host]
-		allow_boot host
-		{:ok, slave} = :slave.start_link(host, to_charlist(opts[:name]), slave_args(opts[:args]))
-		load_paths slave
-		{:ok, %Outpost{slave: slave}}
-	end
-
-	defp allow_boot(host) do
-		:erl_boot_server.add_slave host
-	end
-
-	defp load_paths(slave) do
-		:rpc.block_call(slave, :code, :add_paths, [:code.get_path])
-	end
-
-	defp slave_args(_args) do
-		cookie = case :erlang.get_cookie do
-			:nocookie -> ""
-			_ -> "-setcookie #{:erlang.get_cookie}"
+		outpost = case opts[:original] do
+			nil -> struct(Outpost, opts)
+			original -> Outpost.get original
 		end
-		"#{cookie} -pa /home/ramon/dream_challenge" |> to_charlist
-	end
 
-	defp get_host(host) do
-		host = case host do
-			nil ->
-				node()
-				|> to_string
-				|> String.split("@")
-				|> Enum.at(1)
-			_ -> host
-		end
-		to_charlist host
-	end
-
-	def call(slave, module, method, args) do
-		:rpc.block_call(slave, module, method, args)
-	end
-
-	def cast(slave, module, method, args) do
-		:rpc.call(slave, module, method, args)
+		outpost = %Outpost{outpost | node: Node.self}
+		Outpost.update_alternates(self())
+		{:ok, outpost}
 	end
 
 	def handle_call(:get, _from, outpost) do
 		{:reply, outpost, outpost}
+	end
+
+	def handle_call({:outpost_on_node, node_pid}, _from, outpost) do
+		alternate = Agent.get(outpost.alternates, &(&1))
+			|> Enum.find(fn(pid) ->
+				tmp_outpost = Outpost.get(pid)
+				case tmp_outpost.node do
+					^node_pid -> tmp_outpost
+					_ -> nil
+				end
+			end)
+		{:reply, alternate, outpost}
+	end
+
+	def handle_cast(:update_alternates, outpost) do
+		{:ok, alternates} = case outpost.alternates do
+			nil -> Agent.start_link fn -> [] end
+			x -> {:ok, x}
+		end
+
+		self_pid = self()
+		Agent.update(alternates, &(&1 ++ [self_pid]))
+
+		{:noreply, %Outpost{outpost | alternates: alternates}}
+	end
+
+	def handle_cast({:run_bash_process, mission_pid}, outpost) do
+		mission = Mission.get(mission_pid)
+		script = "./priv/bin/wrapper.sh"
+		cmds = [mission.cmd] ++ case mission.input_file do
+			nil -> []
+			_ -> [mission.input_file]
+		end
+
+		# Porcelain's basic driver only takes nil or :out for err
+		err = case mission.output_with_stderr do
+			true -> :out
+			false -> nil
+		end
+
+		proc = Porcelain.spawn(script, cmds, out: {:send, self()}, err: err)
+		{:noreply, %Outpost{outpost | bash_process: proc}}
+	end
+
+	#########
+	# INFOS #
+	#########
+
+	def handle_info({_pid, :data, :out, data}, outpost) do
+		add_to_output(outpost, data: data, type: :out)
+	end
+
+	def handle_info({_pid, :data, :err, data}, outpost) do
+		add_to_output(outpost, data: data, type: :err)
+	end
+
+	def handle_info({_pid, :result, result}, outpost) do
+		Mission.send_result(self(), self(), result)
+		{:noreply, outpost}
+	end
+
+	defp add_to_output(outpost, opts) do
+		time = :os.system_time(:millisecond)
+		Mission.send(self(), opts ++ [timestamp: time, pid: []])
+		{:noreply, outpost}
 	end
 end

@@ -17,7 +17,8 @@ defmodule Cingi.Mixfile do
 		[
 			applications: [
 				:porcelain,
-				:yaml_elixir
+				:yaml_elixir,
+				:gproc,
 			],
 			extra_applications: [:logger],
 			mod: {Cingi, []},
@@ -29,7 +30,8 @@ defmodule Cingi.Mixfile do
 		[
 			{:porcelain, "~> 2.0"},
 			{:yaml_elixir, "~> 1.3.1"},
-			{:temp, "~> 0.4"}
+			{:temp, "~> 0.4"},
+			{:gproc, "~> 0.5.0"},
 		]
 	end
 end

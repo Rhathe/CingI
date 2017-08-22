@@ -11,6 +11,7 @@ defmodule Cingi.Mission do
 		supermission_pid: nil,
 		submission_pids: [],
 		headquarters_pid: nil,
+		outpost_pid: nil,
 
 		decoded_yaml: nil,
 		cmd: nil,
@@ -21,6 +22,8 @@ defmodule Cingi.Mission do
 		input_file: nil,
 		output: [],
 
+		listen_for_api: false, # Enable to listen in the output for any cingi api calls
+		output_with_stderr: false, # Stderr will be printed to ouput if false, redirected to output if true
 		running: false,
 		finished: false,
 
@@ -99,7 +102,7 @@ defmodule Cingi.Mission do
 				_ -> 0
 			end,
 			key: case mission.key do
-				"" -> construct_key(mission.cmd) 
+				"" -> construct_key(mission.cmd)
 				_ -> mission.key
 			end
 		}
@@ -232,7 +235,13 @@ defmodule Cingi.Mission do
 			_ -> [mission.input_file]
 		end
 
-		proc = Porcelain.spawn(script, cmds, out: {:send, self()}, err: {:send, self()})
+		# Porcelain's basic driver only takes nil or :out for err
+		err = case mission.output_with_stderr do
+			true -> :out
+			false -> nil
+		end
+
+		proc = Porcelain.spawn(script, cmds, out: {:send, self()}, err: err)
 		{:noreply, %Mission{mission | bash_process: proc}}
 	end
 

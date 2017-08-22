@@ -9,7 +9,7 @@ defmodule Cingi.Headquarters do
 		mission_reports: [],
 		queued_missions: [],
 		running_missions: [],
-		finished_missions: []
+		finished_missions: [],
 	]
 
 	def start_link(opts \\ []) do

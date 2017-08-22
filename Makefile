@@ -1,3 +1,8 @@
+FORCE:
+
+deps: FORCE
+	mix deps.get
+
 test:
 	mix test
 
