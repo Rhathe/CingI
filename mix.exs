@@ -20,7 +20,7 @@ defmodule Cingi.Mixfile do
 				:yaml_elixir
 			],
 			extra_applications: [:logger],
-			mod: {Cingi, []}
+			mod: {Cingi, []},
 		]
 	end
 

@@ -226,9 +226,10 @@ defmodule Cingi.Mission do
 	end
 
 	def handle_cast(:run_bash_process, mission) do
-		{script, cmds} = case mission.input_file do
-			nil -> {"./priv/bin/wrapper.sh", [mission.cmd]}
-			_ -> {"./priv/bin/wrapper_with_input.sh", [mission.input_file, mission.cmd]}
+		script = "./priv/bin/wrapper.sh"
+		cmds = [mission.cmd] ++ case mission.input_file do
+			nil -> []
+			_ -> [mission.input_file]
 		end
 
 		proc = Porcelain.spawn(script, cmds, out: {:send, self()}, err: {:send, self()})
@@ -296,11 +297,11 @@ defmodule Cingi.Mission do
 	#########
 
 	def handle_info({_pid, :data, :out, data}, mission) do
-		add_to_output(mission, [data: data, type: :out])
+		add_to_output(mission, data: data, type: :out)
 	end
 
 	def handle_info({_pid, :data, :err, data}, mission) do
-		add_to_output(mission, [data: data, type: :err])
+		add_to_output(mission, data: data, type: :err)
 	end
 
 	def handle_info({_pid, :result, result}, mission) do
@@ -309,8 +310,8 @@ defmodule Cingi.Mission do
 	end
 
 	defp add_to_output(mission, opts) do
-		opts = opts ++ [timestamp: :os.system_time(:millisecond)]
-		Mission.send(self(), opts ++ [pid: []])
+		time = :os.system_time(:millisecond)
+		Mission.send(self(), opts ++ [timestamp: time, pid: []])
 		{:noreply, mission}
 	end
 

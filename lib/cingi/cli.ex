@@ -11,7 +11,7 @@ defmodule Cingi.CLI do
 		yaml_opts = [file: options[:file], cli_pid: self()]
 		Cingi.Headquarters.create_report :main_hq, yaml_opts
 		receive do
-			{:report, report_pid} -> IO.puts "finished"
+			{:report, _} -> :ok
 		end
 	end
 

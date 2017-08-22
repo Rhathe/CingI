@@ -1,7 +1,12 @@
 #!/bin/sh
 
-bash -c "$@"&
-pid=$!
+if [ "$#" -eq "2" ]; then
+	bash -c "cat $2 | $1"&
+	pid=$!
+else
+	bash -c "$1"&
+	pid=$!
+fi
 
 cleanup() {
 	exit_code=$1
