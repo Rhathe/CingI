@@ -38,13 +38,11 @@ defmodule Cingi.Outpost do
 
 	def get_or_create_on_same_node(pid) do
 		outpost = get_on_same_node(pid)
-		"""
-		{:ok, new_pid} = case GenServer.call(pid, {:outpost_on_node, Node.self}) do
+		{:ok, new_pid} = case outpost do
 			nil -> start_link(original: pid)
 			new_pid -> {:ok, new_pid}
 		end
 		new_pid
-		"""
 	end
 
 	def update_alternates(pid) do
@@ -69,9 +67,15 @@ defmodule Cingi.Outpost do
 	end
 
 	def handle_call({:outpost_on_node, node_pid}, _from, outpost) do
+		self_pid = self()
 		alternate = Agent.get(outpost.alternates, &(&1))
 			|> Enum.find(fn(pid) ->
-				tmp_outpost = Outpost.get(pid)
+				# Already have output, prevent recursion
+				tmp_outpost = case pid do
+					^self_pid -> outpost
+					_ -> Outpost.get(pid)
+				end
+
 				case tmp_outpost.node do
 					^node_pid -> tmp_outpost
 					_ -> nil

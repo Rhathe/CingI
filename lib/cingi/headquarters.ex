@@ -5,6 +5,7 @@ defmodule Cingi.Headquarters do
 	use GenServer
 
 	defstruct [
+		node: nil,
 		running: true,
 		mission_reports: [],
 		queued_missions: [],
@@ -43,7 +44,7 @@ defmodule Cingi.Headquarters do
 	# Server Callbacks
 
 	def init(_) do
-		headquarters = %Headquarters{}
+		headquarters = %Headquarters{node: Node.self}
 		{:ok, headquarters}
 	end
 

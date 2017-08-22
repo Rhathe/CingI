@@ -30,4 +30,16 @@ defmodule CingiOutpostTest do
 		assert a1.alternates == a2.alternates
 		assert [^pid1, ^pid2] = a1.alternates |> Agent.get(&(&1))
 	end
+
+	test "alternates gets outpost on same node" do
+		{:ok, pid1} = Outpost.start_link()
+		{:ok, pid2} = Outpost.start_link(original: pid1)
+
+		outpost1 = Outpost.get_on_same_node pid1
+		outpost2 = Outpost.get_on_same_node pid2
+
+		assert pid1 != pid2
+		assert pid1 == outpost1
+		assert pid1 == outpost2
+	end
 end
