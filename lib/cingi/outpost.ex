@@ -45,6 +45,13 @@ defmodule Cingi.Outpost do
 		new_pid
 	end
 
+	# Call explicitely, don't use Agent module with anonymous functions
+	# See section on "A word on distributed agents"
+	# https://github.com/elixir-lang/elixir/blob/cddc99b1d393e99a45db239334aba7bcbff3b218/lib/elixir/lib/agent.ex#L102
+	def get_alternates(pid) do
+		GenServer.call(pid, :get_alternates)
+	end
+
 	def update_alternates(pid) do
 		GenServer.cast(pid, :update_alternates)
 	end
@@ -82,6 +89,11 @@ defmodule Cingi.Outpost do
 				end
 			end)
 		{:reply, alternate, outpost}
+	end
+
+	def handle_call(:get_alternates, _from, outpost) do
+		alternates = Agent.get(outpost.alternates, &(&1))
+		{:reply, alternates, outpost}
 	end
 
 	def handle_cast(:update_alternates, outpost) do

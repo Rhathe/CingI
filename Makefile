@@ -3,8 +3,12 @@ FORCE:
 deps: FORCE
 	mix deps.get
 
-test:
+test: FORCE
 	mix test
+	make test-distributed
+
+test-distributed: FORCE
+	mix test --only distributed
 
 build-cli:
 	mix escript.build
