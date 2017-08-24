@@ -66,7 +66,15 @@ defmodule Cingi.FieldAgent do
 	end
 
 	def handle_cast(:stop, field_agent) do
-		Proc.send_input field_agent.proc, "kill\n"
+		mission = Mission.get(field_agent.mission_pid)
+		case mission.cmd do
+			nil ->
+				mission.submission_pids |> Enum.map(fn(s) ->
+					sub = Mission.get(s)
+					FieldAgent.stop(sub.field_agent_pid)
+				end)
+			_ -> Proc.send_input field_agent.proc, "kill\n"
+		end
 		{:noreply, field_agent}
 	end
 
