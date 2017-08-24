@@ -163,11 +163,11 @@ defmodule Cingi.Headquarters do
 
 		running_missions = cond do
 			mission_pid in hq.running_missions -> List.delete(hq.running_missions, mission_pid)
-			true -> raise "Mission finished but has not ran"
+			true -> raise "Mission finished but not ran"
 		end
 
 		{:noreply, %Headquarters{hq |
-			#running_missions: running_missions,
+			running_missions: running_missions,
 			finished_missions: hq.finished_missions ++ [mission_pid],
 		}}
 	end

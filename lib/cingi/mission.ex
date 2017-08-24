@@ -11,6 +11,7 @@ defmodule Cingi.Mission do
 		prev_mission_pid: nil,
 		supermission_pid: nil,
 		submission_pids: [],
+		finished_submission_pids: [],
 		field_agent_pid: nil,
 
 		decoded_yaml: nil,
@@ -174,7 +175,14 @@ defmodule Cingi.Mission do
 	#########
 
 	def handle_cast({:finished, result, prev_mpid}, mission) do
-		exit_codes = Enum.map(mission.submission_pids, fn m -> Mission.get(m).exit_code end)
+		# Add prev_mpid to finished submissions
+		sub_pids = mission.finished_submission_pids
+		sub_pids = case prev_mpid do
+			nil -> sub_pids
+			x -> sub_pids ++ [x]
+		end
+
+		exit_codes = Enum.map(sub_pids, fn m -> Mission.get(m).exit_code end)
 
 		exit_code = case length(exit_codes) do
 			0 -> result.status
@@ -187,15 +195,21 @@ defmodule Cingi.Mission do
 
 		# If a nil exit code, then submissions have not finished and more should be queued up
 		# Else tell the field agent that the mission is finished
-		case exit_code do
-			nil -> Mission.run_submissions(self(), prev_mpid)
-			_ -> FieldAgent.mission_has_finished(mission.field_agent_pid, result)
+		[finished, running] = case exit_code do
+			nil ->
+				Mission.run_submissions(self(), prev_mpid)
+				[false, true]
+			_ ->
+				if (mission.finished) do raise "Got a finished message but already finished" end
+				FieldAgent.mission_has_finished(mission.field_agent_pid, result)
+				[true, false]
 		end
 
 		{:noreply, %Mission{mission |
 			exit_code: exit_code,
-			finished: true,
-			running: false
+			finished: finished,
+			running: running,
+			finished_submission_pids: sub_pids,
 		}}
 	end
 

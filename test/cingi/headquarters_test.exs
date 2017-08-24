@@ -57,9 +57,9 @@ defmodule CingiHeadquartersTest do
 		Headquarters.resume(pid)
 		Helper.check_exit_code mpid
 
-		hq = Headquarters.get(pid)
+		hq = wait_for_finished_missions(pid, 1)
 		assert length(hq.queued_missions) == 0
-		assert length(hq.running_missions) == 1
+		assert length(hq.finished_missions) == 1
 		mission = wait_for_exit_code(res[:mission_pid])
 		assert [[data: "1\n", type: :out, timestamp: _, pid: []]] = mission.output
 	end
@@ -88,6 +88,7 @@ defmodule CingiHeadquartersTest do
 		hq = wait_for_running_missions(pid, 2)
 		assert length(hq.queued_missions) == 0
 		assert length(hq.running_missions) == 2
+		assert length(hq.finished_missions) == 0
 
 		mission = Mission.get(res[:mission_pid])
 		assert %{output: [], exit_code: nil, submission_pids: [sm1]} = mission
@@ -95,9 +96,11 @@ defmodule CingiHeadquartersTest do
 		assert %{cmd: "ncat -l -i 1 8000", running: true, finished: false} = submission1
 
 		Porcelain.spawn("bash", [ "-c", "echo -n blah1 | nc localhost 8000"])
-		hq = wait_for_running_missions(pid, 3)
+		wait_for_finished_missions(pid, 1)
+		hq = wait_for_running_missions(pid, 2)
 		assert length(hq.queued_missions) == 0
-		assert length(hq.running_missions) == 3
+		assert length(hq.running_missions) == 2
+		assert length(hq.finished_missions) == 1
 
 		mission = Mission.get(res[:mission_pid])
 		assert %{output: output, exit_code: nil, submission_pids: [sm1, sm2]} = mission
@@ -120,6 +123,11 @@ defmodule CingiHeadquartersTest do
 
 		submission2 = Mission.get(sm2)
 		assert %{cmd: "ncat -l -i 1 8001", running: false, finished: true} = submission2
+
+		hq = wait_for_finished_missions(pid, 3)
+		assert length(hq.queued_missions) == 0
+		assert length(hq.running_missions) == 0
+		assert length(hq.finished_missions) == 3
 	end
 
 	test "runs parallel submissions" do
@@ -186,7 +194,7 @@ defmodule CingiHeadquartersTest do
 		Headquarters.resume(pid)
 		Helper.check_exit_code mpid
 
-		opids = Headquarters.get(pid).running_missions
+		opids = Headquarters.get(pid).finished_missions
 			|> Enum.map(&Mission.get_outpost/1)
 			|> Enum.uniq
 
@@ -218,6 +226,14 @@ defmodule CingiHeadquartersTest do
 		cond do
 			n <= length(hq.running_missions) -> hq
 			true -> wait_for_running_missions(pid, n)
+		end
+	end
+
+	defp wait_for_finished_missions(pid, n) do
+		hq = Headquarters.get(pid)
+		cond do
+			n <= length(hq.finished_missions) -> hq
+			true -> wait_for_finished_missions(pid, n)
 		end
 	end
 

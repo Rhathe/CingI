@@ -76,13 +76,13 @@ defmodule Cingi.FieldAgent do
 		mpid = field_agent.mission_pid
 		mission = Mission.get(mpid)
 
+		Mission.set_as_running(mpid, self())
+		Outpost.mission_has_run(field_agent.outpost_pid, mpid)
+
 		cond do
 			mission.cmd -> FieldAgent.run_bash_process(self())
 			mission.submissions -> Mission.run_submissions(mpid)
 		end
-
-		Mission.set_as_running(mpid, self())
-		Outpost.mission_has_run(field_agent.outpost_pid, mpid)
 
 		{:noreply, field_agent}
 	end
