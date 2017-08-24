@@ -2,25 +2,25 @@ missions:
   sequential:
     missions:
       fail_fast:
-        fail_fast: true
         missions:
           - echo "seq_fail_fast"
           - exit 7
           - echo "Should not be in seq_fail_fast"
       continue:
+        fail_fast: false
         missions:
           - echo "seq_continue"
           - exit 9
-          - echo "Should be in seq_continue"
+          - echo "Should still not be in seq_continue"
 
   parallel:
     missions:
       fail_fast:
         fail_fast: true
         missions:
-          1: echo "par_fail_fast"
+          1: ncat -l -i 1 9990
           2: exit 3
       continue:
         missions:
-          1: echo "par_continue"
+          1: ncat -l -i 1 9991
           2: exit 4

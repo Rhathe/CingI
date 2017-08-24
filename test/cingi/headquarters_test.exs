@@ -208,6 +208,41 @@ defmodule CingiHeadquartersTest do
 		} = Enum.at(outposts, 0)
 	end
 
+	test "gets correct exit codes fails fast when necessary" do
+		res = create_mission_report([file: "test/mission_plans/exits.plan"])
+		pid = res[:pid]
+		mpid = res[:mission_pid]
+		Headquarters.resume(pid)
+
+		hq = wait_for_finished_missions(pid, 11)
+		assert length(hq.queued_missions) == 0
+
+		# non-fail fast ncat task, its parent,
+		# the whole parallel mission, and the mission itself
+		assert length(hq.running_missions) == 4
+
+		# 1 sequential supermission
+		# 2 submissions below that
+		# 4 sequential missions (fail_fast doesn't matter with sequential)
+		# 1 fail fast parallel supermission
+		# 2 fail fast parallel missions
+		# 1 non-fail fast parallel mission
+		assert length(hq.finished_missions) == 11
+
+		Porcelain.spawn("bash", [ "-c", "echo -n endncat | ncat localhost 9991"])
+		Helper.check_exit_code mpid
+
+		mission = Mission.get(mpid)
+		assert 137 = mission.exit_code
+
+		output = mission.output |>
+			Enum.map(&(&1[:data]))
+
+		assert [a, b, "endncat"] = output
+		l1 = Enum.sort(["seq_continue\n", "seq_fail_fast\n"])
+		assert ^l1 = Enum.sort([a, b])
+	end
+
 	defp get_paused() do
 		{:ok, pid} = Headquarters.start_link()
 		Headquarters.pause(pid)

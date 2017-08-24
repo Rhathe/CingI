@@ -25,7 +25,7 @@ defmodule Cingi.Mission do
 
 		listen_for_api: false, # Enable to listen in the output for any cingi api calls
 		output_with_stderr: false, # Stderr will be printed to ouput if false, redirected to output if true
-		fail_fast: false,
+		fail_fast: true,
 		running: false,
 		finished: false,
 
@@ -161,12 +161,11 @@ defmodule Cingi.Mission do
 		new_map = [
 			key: construct_key(map["name"]),
 			input_file: map["input"],
-			fail_fast: map["fail_fast"] || false,
 		]
 
 		submissions = map["missions"]
 		new_map ++ cond do
-			is_map(submissions) -> [submissions: submissions]
+			is_map(submissions) -> [submissions: submissions, fail_fast: map["fail_fast"] || false]
 			is_list(submissions) -> [submissions: submissions]
 			true -> [cmd: submissions]
 		end
@@ -212,12 +211,15 @@ defmodule Cingi.Mission do
 
 		# If a nil exit code, then submissions have not finished and more should be queued up
 		# Else tell the field agent that the mission is finished
-		[finished, running] = case exit_code do
-			nil ->
+		[finished, running] = case {exit_code, mission.finished} do
+			{nil, _} ->
 				Mission.run_submissions(self(), prev_mpid)
 				[false, true]
+			{0, true} ->
+				raise "Got a finished message but already finished"
+			{_, true} ->
+				[true, false]
 			_ ->
-				if (mission.finished) do raise "Got a finished message but already finished" end
 				FieldAgent.mission_has_finished(mission.field_agent_pid, result)
 				[true, false]
 		end
