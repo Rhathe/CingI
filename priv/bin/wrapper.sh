@@ -22,6 +22,8 @@ else
 	pid=$!
 fi
 
+# Needed wrapper because Erlang VM sends EOF when process dies, but
+# some programs don't respect the EOF signal, so a kill is necessary
 # NOTE: Don't use /bin/sh, <&0 redirection does not work
 {
 	while read line ; do

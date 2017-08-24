@@ -188,24 +188,26 @@ defmodule Cingi.Mission do
 			|> Enum.map(&(Mission.get(&1).exit_code))
 			|> Enum.filter(&(&1))
 
-		exit_code = case length(exit_codes) do
-			0 -> result.status
-			_ -> cond do
-				length(exit_codes) != mission.submissions_num -> nil
-				true -> Enum.max(exit_codes)
-			end
-		end
-
-		# If there is a failure code and fail_fast is true,
-		# Send kill signal to all submissions
+		# Check if a failure should trigger a fail_fast behavior
 		check = length(exit_codes) > 0
 			and Enum.max(exit_codes) > 0
 			and mission.fail_fast
 
+		# If a fail_fast situation is warranted,
+		# Send kill signal to all submissions
 		if (check) do
 			mission.submission_pids
 				|> Enum.map(&Mission.get/1)
 				|> Enum.map(&(FieldAgent.stop(&1.field_agent_pid)))
+		end
+
+		exit_code = case length(exit_codes) do
+			0 -> result.status
+			_ -> cond do
+				check -> Enum.max(exit_codes)
+				length(exit_codes) != mission.submissions_num -> nil
+				true -> Enum.max(exit_codes)
+			end
 		end
 
 		# If a nil exit code, then submissions have not finished and more should be queued up
