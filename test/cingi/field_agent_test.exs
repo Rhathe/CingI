@@ -89,7 +89,7 @@ defmodule CingiFieldAgentTest do
 				output: [],
 				finished: true,
 				running: false,
-				exit_code: 1,
+				exit_code: 137,
 				field_agent_pid: ^fpid,
 			} = Mission.get(mpid)
 		end
@@ -110,7 +110,7 @@ defmodule CingiFieldAgentTest do
 				output: [],
 				finished: true,
 				running: false,
-				exit_code: 1,
+				exit_code: 137,
 				field_agent_pid: ^fpid2,
 			} = Mission.get(mpid2)
 		end

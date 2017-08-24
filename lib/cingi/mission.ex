@@ -25,6 +25,7 @@ defmodule Cingi.Mission do
 
 		listen_for_api: false, # Enable to listen in the output for any cingi api calls
 		output_with_stderr: false, # Stderr will be printed to ouput if false, redirected to output if true
+		fail_fast: false,
 		running: false,
 		finished: false,
 
@@ -160,6 +161,7 @@ defmodule Cingi.Mission do
 		new_map = [
 			key: construct_key(map["name"]),
 			input_file: map["input"],
+			fail_fast: map["fail_fast"] || false,
 		]
 
 		submissions = map["missions"]
@@ -182,16 +184,28 @@ defmodule Cingi.Mission do
 			x -> sub_pids ++ [x]
 		end
 
-		exit_codes = Enum.map(sub_pids, fn m -> Mission.get(m).exit_code end)
+		exit_codes = sub_pids
+			|> Enum.map(&(Mission.get(&1).exit_code))
+			|> Enum.filter(&(&1))
 
 		exit_code = case length(exit_codes) do
 			0 -> result.status
 			_ -> cond do
-			#	exit_codes = Enum.filter(&(&1 && &1 > 0))
 				length(exit_codes) != mission.submissions_num -> nil
-				nil in exit_codes -> nil
-				true -> Enum.at(exit_codes, 0)
+				true -> Enum.max(exit_codes)
 			end
+		end
+
+		# If there is a failure code and fail_fast is true,
+		# Send kill signal to all submissions
+		check = length(exit_codes) > 0
+			and Enum.max(exit_codes) > 0
+			and mission.fail_fast
+
+		if (check) do
+			mission.submission_pids
+				|> Enum.map(&Mission.get/1)
+				|> Enum.map(&(FieldAgent.stop(&1.field_agent_pid)))
 		end
 
 		# If a nil exit code, then submissions have not finished and more should be queued up

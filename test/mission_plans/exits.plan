@@ -2,7 +2,7 @@ missions:
   sequential:
     missions:
       fail_fast:
-        failfast: true
+        fail_fast: true
         missions:
           - echo "seq_fail_fast"
           - exit 7
@@ -16,7 +16,7 @@ missions:
   parallel:
     missions:
       fail_fast:
-        failfast: true
+        fail_fast: true
         missions:
           1: echo "par_fail_fast"
           2: exit 3
