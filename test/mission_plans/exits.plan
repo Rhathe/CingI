@@ -1,0 +1,26 @@
+missions:
+  sequential:
+    missions:
+      fail_fast:
+        failfast: true
+        missions:
+          - echo "seq_fail_fast"
+          - exit 7
+          - echo "Should not be in seq_fail_fast"
+      continue:
+        missions:
+          - echo "seq_continue"
+          - exit 9
+          - echo "Should be in seq_continue"
+
+  parallel:
+    missions:
+      fail_fast:
+        failfast: true
+        missions:
+          1: echo "par_fail_fast"
+          2: exit 3
+      continue:
+        missions:
+          1: echo "par_continue"
+          2: exit 4

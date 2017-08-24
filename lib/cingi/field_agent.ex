@@ -8,12 +8,13 @@ defmodule Cingi.FieldAgent do
 	alias Cingi.FieldAgent
 	alias Cingi.Outpost
 	alias Cingi.Mission
+	alias Porcelain.Process, as: Proc
 	use GenServer
 
 	defstruct [
 		mission_pid: nil,
 		outpost_pid: nil,
-		bash_pid: nil,
+		proc: nil,
 	]
 
 	# Client API
@@ -26,8 +27,8 @@ defmodule Cingi.FieldAgent do
 		GenServer.call(pid, :get)
 	end
 
-	def run_mission(pid) do
-		GenServer.cast(pid, :run_mission)
+	def stop(pid) do
+		GenServer.cast(pid, :stop)
 	end
 
 	def run_bash_process(pid) do
@@ -46,12 +47,27 @@ defmodule Cingi.FieldAgent do
 
 	def init(opts) do
 		field_agent = struct(FieldAgent, opts)
-		FieldAgent.run_mission(self())
+		mpid = field_agent.mission_pid
+		mission = Mission.get(mpid)
+
+		Mission.set_as_running(mpid, self())
+		Outpost.mission_has_run(field_agent.outpost_pid, mpid)
+
+		cond do
+			mission.cmd -> FieldAgent.run_bash_process(self())
+			mission.submissions -> Mission.run_submissions(mpid)
+		end
+
 		{:ok, field_agent}
 	end
 
 	def handle_call(:get, _from, field_agent) do
 		{:reply, field_agent, field_agent}
+	end
+
+	def handle_cast(:stop, field_agent) do
+		Proc.send_input field_agent.proc, "kill\n"
+		{:noreply, field_agent}
 	end
 
 	def handle_cast(:run_bash_process, field_agent) do
@@ -68,23 +84,8 @@ defmodule Cingi.FieldAgent do
 			false -> nil
 		end
 
-		proc = Porcelain.spawn(script, cmds, out: {:send, self()}, err: err)
-		{:noreply, %FieldAgent{field_agent | bash_pid: proc}}
-	end
-
-	def handle_cast(:run_mission, field_agent) do
-		mpid = field_agent.mission_pid
-		mission = Mission.get(mpid)
-
-		Mission.set_as_running(mpid, self())
-		Outpost.mission_has_run(field_agent.outpost_pid, mpid)
-
-		cond do
-			mission.cmd -> FieldAgent.run_bash_process(self())
-			mission.submissions -> Mission.run_submissions(mpid)
-		end
-
-		{:noreply, field_agent}
+		proc = Porcelain.spawn(script, cmds, in: :receive, out: {:send, self()}, err: err)
+		{:noreply, %FieldAgent{field_agent | proc: proc}}
 	end
 
 	def handle_cast({:result, result, prev_mpid}, field_agent) do

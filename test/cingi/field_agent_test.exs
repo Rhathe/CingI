@@ -78,6 +78,21 @@ defmodule CingiFieldAgentTest do
 				field_agent_pid: ^fpid,
 			} = Mission.get(mpid)
 		end
+
+		test "kills bash process", ctx do
+			{fpid, mpid} = fa_with_cmd("ncat -l -i 1 19009", ctx.outpost_pid)
+			FieldAgent.stop fpid
+			Helper.check_exit_code mpid
+
+			assert %{
+				cmd: "ncat -l -i 1 19009",
+				output: [],
+				finished: true,
+				running: false,
+				exit_code: 1,
+				field_agent_pid: ^fpid,
+			} = Mission.get(mpid)
+		end
 	end
 
 	defp blank_outpost(_) do

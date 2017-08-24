@@ -6,15 +6,22 @@ defmodule Cingi do
 	use Application
 
 	def start(_type, _args) do
+		name = {:global, Node.self}
+
 		# List all child processes to be supervised
 		children = [
 			# Starts a worker by calling: Cingi.Worker.start_link(arg)
-			{Cingi.Headquarters, name: {:global, Node.self}},
+			{Cingi.Headquarters, name: name},
 		]
 
 		# See https://hexdocs.pm/elixir/Supervisor.html
 		# for other strategies and supported options
 		opts = [strategy: :one_for_one, name: Cingi.Supervisor]
-		Supervisor.start_link(children, opts)
+		send(self(), :register_name)
+		ret = Supervisor.start_link(children, opts)
+
+		pid = GenServer.whereis name
+		Process.register pid, :main_hq
+		ret
 	end
 end

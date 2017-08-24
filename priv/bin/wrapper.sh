@@ -17,7 +17,9 @@ cleanup() {
 trap "cleanup $?" CHLD
 
 while read line ; do
-	:
+	if [ "$line" = "kill" ]; then
+		break
+	fi
 done
 
-cleanup
+cleanup 1

@@ -187,6 +187,7 @@ defmodule Cingi.Mission do
 		exit_code = case length(exit_codes) do
 			0 -> result.status
 			_ -> cond do
+			#	exit_codes = Enum.filter(&(&1 && &1 > 0))
 				length(exit_codes) != mission.submissions_num -> nil
 				nil in exit_codes -> nil
 				true -> Enum.at(exit_codes, 0)
