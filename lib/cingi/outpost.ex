@@ -62,6 +62,10 @@ defmodule Cingi.Outpost do
 		GenServer.cast(pid, {:mission_has_run, mission_pid})
 	end
 
+	def mission_has_finished(pid, mission_pid, result) do
+		GenServer.cast(pid, {:mission_has_finished, mission_pid, result})
+	end
+
 	# Call explicitely, don't use Agent module with anonymous functions
 	# See section on "A word on distributed agents"
 	# https://github.com/elixir-lang/elixir/blob/cddc99b1d393e99a45db239334aba7bcbff3b218/lib/elixir/lib/agent.ex#L102
@@ -136,6 +140,11 @@ defmodule Cingi.Outpost do
 
 	def handle_cast({:mission_has_run, mission_pid}, outpost) do
 		Headquarters.mission_has_run(outpost.headquarters_pid, mission_pid)
+		{:noreply, outpost}
+	end
+
+	def handle_cast({:mission_has_finished, mission_pid, result}, outpost) do
+		Headquarters.mission_has_finished(outpost.headquarters_pid, mission_pid, result)
 		{:noreply, outpost}
 	end
 end

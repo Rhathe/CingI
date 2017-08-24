@@ -6,7 +6,6 @@ defmodule Cingi.FieldAgent do
 	"""
 
 	alias Cingi.FieldAgent
-	alias Cingi.Headquarters
 	alias Cingi.Outpost
 	alias Cingi.Mission
 	use GenServer
@@ -93,7 +92,9 @@ defmodule Cingi.FieldAgent do
 	end
 
 	def handle_info({_pid, :result, result}, field_agent) do
-		Mission.send_result(field_agent.mission_pid, nil, result)
+		mpid = field_agent.mission_pid
+		Mission.send_result(mpid, nil, result)
+		Outpost.mission_has_finished(field_agent.outpost_pid, mpid, result)
 		{:noreply, field_agent}
 	end
 

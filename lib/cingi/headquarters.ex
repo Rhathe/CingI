@@ -39,6 +39,10 @@ defmodule Cingi.Headquarters do
 		GenServer.cast(pid, {:mission_has_run, mission_pid})
 	end
 
+	def mission_has_finished(pid, mission_pid, result) do
+		GenServer.cast(pid, {:mission_has_finished, mission_pid, result})
+	end
+
 	def pause(pid) do
 		GenServer.call(pid, :pause)
 	end
@@ -140,6 +144,18 @@ defmodule Cingi.Headquarters do
 		{:noreply, %Headquarters{hq |
 			started_missions: started_missions,
 			running_missions: hq.running_missions ++ [mission_pid],
+		}}
+	end
+
+	def handle_cast({:mission_has_finished, mission_pid, result}, hq) do
+		running_missions = cond do
+			mission_pid in hq.running_missions -> List.delete(hq.running_missions, mission_pid)
+			true -> raise "Mission finished but has not ran"
+		end
+
+		{:noreply, %Headquarters{hq |
+			#running_missions: running_missions,
+			finished_missions: hq.finished_missions ++ [mission_pid],
 		}}
 	end
 end
