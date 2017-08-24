@@ -93,7 +93,7 @@ defmodule Cingi.FieldAgent do
 	end
 
 	def handle_info({_pid, :result, result}, field_agent) do
-		Mission.send_result(field_agent.mission_pid, self(), result)
+		Mission.send_result(field_agent.mission_pid, nil, result)
 		{:noreply, field_agent}
 	end
 
