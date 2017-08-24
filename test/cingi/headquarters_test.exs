@@ -186,10 +186,17 @@ defmodule CingiHeadquartersTest do
 		Headquarters.resume(pid)
 		Helper.check_exit_code mpid
 
+		opids = Headquarters.get(pid).running_missions
+			|> Enum.map(&Mission.get_outpost/1)
+			|> Enum.uniq
+
+		assert length(opids) == 2
+		outposts = opids |> Enum.map(&Outpost.get/1)
+
 		assert %{
 			alternates: _,
 			node: :nonode@nohost,
-		} = Mission.get_outpost(mpid) |> Outpost.get
+		} = Enum.at(outposts, 0)
 	end
 
 	defp get_paused() do
