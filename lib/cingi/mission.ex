@@ -44,8 +44,8 @@ defmodule Cingi.Mission do
 		GenServer.cast(pid, {:init_submission, submission_pid})
 	end
 
-	def send_result(pid, finished_pid, result) do
-		GenServer.cast(pid, {:finished, finished_pid, result})
+	def send_result(pid, result, prev_mpid) do
+		GenServer.cast(pid, {:finished, result, prev_mpid})
 	end
 
 	def run_submissions(pid, prev_pid \\ nil) do
@@ -173,7 +173,7 @@ defmodule Cingi.Mission do
 	# CASTS #
 	#########
 
-	def handle_cast({:finished, finished_pid, result}, mission) do
+	def handle_cast({:finished, result, prev_mpid}, mission) do
 		exit_codes = Enum.map(mission.submission_pids, fn m -> Mission.get(m).exit_code end)
 
 		exit_code = case length(exit_codes) do
@@ -185,17 +185,11 @@ defmodule Cingi.Mission do
 			end
 		end
 
+		# If a nil exit code, then submissions have not finished and more should be queued up
+		# Else tell the field agent that the mission is finished
 		case exit_code do
-			nil -> Mission.run_submissions(self(), finished_pid)
-			_ ->
-				super_pid = mission.supermission_pid
-				report_pid = mission.report_pid
-
-				cond do
-					super_pid -> Mission.send_result(super_pid, self(), result)
-					report_pid -> MissionReport.finished_mission(report_pid, self())
-					true -> :ok
-				end
+			nil -> Mission.run_submissions(self(), prev_mpid)
+			_ -> FieldAgent.mission_has_finished(mission.field_agent_pid, result)
 		end
 
 		{:noreply, %Mission{mission |

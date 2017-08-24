@@ -34,6 +34,14 @@ defmodule Cingi.FieldAgent do
 		GenServer.cast(pid, :run_bash_process)
 	end
 
+	def send_result(pid, result, prev_mpid \\ nil) do
+		GenServer.cast(pid, {:result, result, prev_mpid})
+	end
+
+	def mission_has_finished(pid, result) do
+		GenServer.cast(pid, {:mission_has_finished, result})
+	end
+
 	# Server Callbacks
 
 	def init(opts) do
@@ -79,6 +87,17 @@ defmodule Cingi.FieldAgent do
 		{:noreply, field_agent}
 	end
 
+	def handle_cast({:result, result, prev_mpid}, field_agent) do
+		mpid = field_agent.mission_pid
+		Mission.send_result(mpid, result, prev_mpid)
+		{:noreply, field_agent}
+	end
+
+	def handle_cast({:mission_has_finished, result}, field_agent) do
+		Outpost.mission_has_finished(field_agent.outpost_pid, field_agent.mission_pid, result)
+		{:noreply, field_agent}
+	end
+
 	#########
 	# INFOS #
 	#########
@@ -92,9 +111,7 @@ defmodule Cingi.FieldAgent do
 	end
 
 	def handle_info({_pid, :result, result}, field_agent) do
-		mpid = field_agent.mission_pid
-		Mission.send_result(mpid, nil, result)
-		Outpost.mission_has_finished(field_agent.outpost_pid, mpid, result)
+		FieldAgent.send_result(self(), result)
 		{:noreply, field_agent}
 	end
 

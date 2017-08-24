@@ -1,5 +1,6 @@
 defmodule Cingi.Headquarters do
 	alias Cingi.Headquarters
+	alias Cingi.FieldAgent
 	alias Cingi.Outpost
 	alias Cingi.Mission
 	alias Cingi.MissionReport
@@ -148,6 +149,18 @@ defmodule Cingi.Headquarters do
 	end
 
 	def handle_cast({:mission_has_finished, mission_pid, result}, hq) do
+		mission = Mission.get(mission_pid)
+		super_pid = mission.supermission_pid
+		report_pid = mission.report_pid
+
+		cond do
+			super_pid ->
+				smission = Mission.get(super_pid)
+				FieldAgent.send_result(smission.field_agent_pid, result, mission_pid)
+			report_pid -> MissionReport.finished_mission(report_pid, mission_pid)
+			true -> :ok
+		end
+
 		running_missions = cond do
 			mission_pid in hq.running_missions -> List.delete(hq.running_missions, mission_pid)
 			true -> raise "Mission finished but has not ran"
