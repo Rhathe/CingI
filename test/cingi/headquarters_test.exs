@@ -72,11 +72,12 @@ defmodule CingiHeadquartersTest do
 		pid = res[:pid]
 		Headquarters.resume(pid)
 		mission = wait_for_exit_code(res[:mission_pid])
-		assert [
-			[data: "match1\nignored2\nmatch3\n", type: :out, timestamp: _, pid: _],
-			[data: "match1\nmatch3\n", type: :out, timestamp: _, pid: _],
-			[data: "end\n", type: :out, timestamp: _, pid: _],
-		] = mission.output
+
+		outputs = mission.output
+			|> Enum.map(&(String.split(&1[:data], "\n", trim: true)))
+			|> List.flatten
+
+		assert ["match1", "ignored2", "match3", "match1", "match3", "end"] = outputs
 	end
 
 	test "runs sequential submissions" do
