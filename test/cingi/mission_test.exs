@@ -10,77 +10,13 @@ defmodule CingiMissionTest do
 			output: [],
 			input_file: nil,
 			submissions_num: 0,
-			running: false
+			running: false,
 		} = Mission.get(pid)
 	end
 
 	test "creates empty mission fails" do
 		Process.flag :trap_exit, true
 		{:error, {%RuntimeError{message: "Must have cmd or submissions, got nil"}, _}}  = Mission.start_link([])
-	end
-
-	test "runs mission with appropriate running/finished flag" do
-		pid = mission_with_cmd("ncat -l -i 1 9000")
-		Mission.run(pid)
-		assert %{
-			cmd: "ncat -l -i 1 9000",
-			output: [],
-			finished: false,
-			running: true,
-			exit_code: nil
-		} = Mission.get(pid)
-
-		Porcelain.spawn("bash", [ "-c", "echo -n blah | ncat localhost 9000"])
-		check_exit_code(pid)
-		assert %{
-			cmd: "ncat -l -i 1 9000",
-			output: [[data: "blah", type: :out, timestamp: _, pid: []]],
-			finished: true,
-			running: false,
-			exit_code: 0
-		} = Mission.get(pid)
-	end
-
-	test "runs mission no args" do
-		pid = mission_with_cmd("echo")
-		Mission.run(pid)
-		check_exit_code(pid)
-		assert %{
-			cmd: "echo",
-			output: [[data: "\n", type: :out, timestamp: _, pid: []]],
-			finished: true,
-			running: false,
-			exit_code: 0
-		} = Mission.get(pid)
-	end
-
-	test "runs mission with args" do
-		pid = mission_with_cmd("echo blah")
-		Mission.run(pid)
-		check_exit_code(pid)
-		assert %{
-			cmd: "echo blah",
-			output: [[data: "blah\n", type: :out, timestamp: _, pid: []]],
-			finished: true,
-			running: false,
-			exit_code: 0
-		} = Mission.get(pid)
-	end
-
-	test "runs mission with args and ampersands" do
-		pid = mission_with_cmd("echo blah1 && sleep 0.1 && echo blah2")
-		Mission.run(pid)
-		check_exit_code(pid)
-		assert %{
-			cmd: "echo blah1 && sleep 0.1 && echo blah2",
-			output: [
-				[data: "blah1\n", type: :out, timestamp: _, pid: []],
-				[data: "blah2\n", type: :out, timestamp: _, pid: []]
-			],
-			finished: true,
-			running: false,
-			exit_code: 0
-		} = Mission.get(pid)
 	end
 
 	test "constructs with yaml command" do
@@ -161,13 +97,5 @@ defmodule CingiMissionTest do
 	defp mission_with_cmd(cmd) do
 		{:ok, pid} = Mission.start_link([cmd: cmd])
 		pid
-	end
-
-	defp check_exit_code(pid) do
-		mission = Mission.get(pid)
-		case mission.exit_code do
-			nil -> check_exit_code(pid)
-			_ -> mission.exit_code
-		end
 	end
 end

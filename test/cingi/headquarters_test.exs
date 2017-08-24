@@ -1,6 +1,7 @@
 defmodule CingiHeadquartersTest do
 	use ExUnit.Case
 	alias Cingi.Headquarters
+	alias Cingi.Outpost
 	alias Cingi.Mission
 	alias Cingi.MissionReport
 	doctest Headquarters
@@ -52,7 +53,10 @@ defmodule CingiHeadquartersTest do
 	test "runs queued missions" do
 		res = create_mission_report([string: "missions: echo 1"])
 		pid = res[:pid]
+		mpid = res[:mission_pid]
 		Headquarters.resume(pid)
+		Helper.check_exit_code mpid
+
 		hq = Headquarters.get(pid)
 		assert length(hq.queued_missions) == 0
 		assert length(hq.running_missions) == 1
@@ -167,6 +171,19 @@ defmodule CingiHeadquartersTest do
 		l1 = Enum.sort(["match 1\n", "ignored 2\n", "match 3\n", "ignored 4\n", "match 5\n", "ignored 6\n"])
 		l2 = Enum.sort([a, b, c, d, e, f])
 		assert ^l1 = l2
+	end
+
+	test "generates correct outposts" do
+		res = create_mission_report([file: "test/mission_plans/outposts.plan"])
+		pid = res[:pid]
+		mpid = res[:mission_pid]
+		Headquarters.resume(pid)
+		Helper.check_exit_code mpid
+
+		assert %{
+			alternates: _,
+			node: :nonode@nohost,
+		} = Mission.get_outpost(mpid) |> Outpost.get
 	end
 
 	defp get_paused() do

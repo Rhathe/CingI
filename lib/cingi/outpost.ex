@@ -6,16 +6,21 @@ defmodule Cingi.Outpost do
 	"""
 
 	alias Cingi.Outpost
-	alias Cingi.Mission
+	alias Cingi.FieldAgent
+	alias Cingi.Headquarters
 	use GenServer
 
 	defstruct [
 		name: nil,
 		node: nil,
+		headquarters_pid: nil,
 		setup_steps: nil,
 		bash_process: nil,
 		alternates: nil,
 		is_setup: false,
+		dir: nil,
+		envs: nil,
+		missions: [],
 	]
 
 	# Client API
@@ -43,6 +48,18 @@ defmodule Cingi.Outpost do
 			new_pid -> {:ok, new_pid}
 		end
 		new_pid
+	end
+
+	def run_mission(pid, mission) do
+		GenServer.cast(pid, {:run_mission, mission})
+	end
+
+	def set_hq(pid, hq_pid) do
+		GenServer.cast(pid, {:set_hq, hq_pid})
+	end
+
+	def mission_has_run(pid, mission_pid) do
+		GenServer.cast(pid, {:mission_has_run, mission_pid})
 	end
 
 	# Call explicitely, don't use Agent module with anonymous functions
@@ -108,44 +125,17 @@ defmodule Cingi.Outpost do
 		{:noreply, %Outpost{outpost | alternates: alternates}}
 	end
 
-	def handle_cast({:run_bash_process, mission_pid}, outpost) do
-		mission = Mission.get(mission_pid)
-		script = "./priv/bin/wrapper.sh"
-		cmds = [mission.cmd] ++ case mission.input_file do
-			nil -> []
-			_ -> [mission.input_file]
-		end
-
-		# Porcelain's basic driver only takes nil or :out for err
-		err = case mission.output_with_stderr do
-			true -> :out
-			false -> nil
-		end
-
-		proc = Porcelain.spawn(script, cmds, out: {:send, self()}, err: err)
-		{:noreply, %Outpost{outpost | bash_process: proc}}
+	def handle_cast({:run_mission, mission}, outpost) do
+		FieldAgent.start_link(mission_pid: mission, outpost_pid: self())
+		{:noreply, %Outpost{outpost | missions: outpost.missions ++ [mission]}}
 	end
 
-	#########
-	# INFOS #
-	#########
-
-	def handle_info({_pid, :data, :out, data}, outpost) do
-		add_to_output(outpost, data: data, type: :out)
+	def handle_cast({:set_hq, hq_pid}, outpost) do
+		{:noreply, %Outpost{outpost | headquarters_pid: hq_pid}}
 	end
 
-	def handle_info({_pid, :data, :err, data}, outpost) do
-		add_to_output(outpost, data: data, type: :err)
-	end
-
-	def handle_info({_pid, :result, result}, outpost) do
-		Mission.send_result(self(), self(), result)
-		{:noreply, outpost}
-	end
-
-	defp add_to_output(outpost, opts) do
-		time = :os.system_time(:millisecond)
-		Mission.send(self(), opts ++ [timestamp: time, pid: []])
+	def handle_cast({:mission_has_run, mission_pid}, outpost) do
+		Headquarters.mission_has_run(outpost.headquarters_pid, mission_pid)
 		{:noreply, outpost}
 	end
 end

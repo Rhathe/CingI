@@ -1,6 +1,7 @@
 defmodule Cingi.Mission do
 	alias Cingi.Mission
 	alias Cingi.MissionReport
+	alias Cingi.FieldAgent
 	use GenServer
 
 	defstruct [
@@ -10,8 +11,7 @@ defmodule Cingi.Mission do
 		prev_mission_pid: nil,
 		supermission_pid: nil,
 		submission_pids: [],
-		headquarters_pid: nil,
-		outpost_pid: nil,
+		field_agent_pid: nil,
 
 		decoded_yaml: nil,
 		cmd: nil,
@@ -36,10 +36,6 @@ defmodule Cingi.Mission do
 		GenServer.start_link(__MODULE__, opts)
 	end
 
-	def run(pid, headquarters_pid \\ nil) do
-		GenServer.call(pid, {:run, headquarters_pid})
-	end
-
 	def send(pid, data) do
 		GenServer.cast(pid, {:data_and_metadata, data})
 	end
@@ -50,10 +46,6 @@ defmodule Cingi.Mission do
 
 	def send_result(pid, finished_pid, result) do
 		GenServer.cast(pid, {:finished, finished_pid, result})
-	end
-
-	def run_bash_process(pid) do
-		GenServer.cast(pid, :run_bash_process)
 	end
 
 	def run_submissions(pid, prev_pid \\ nil) do
@@ -77,6 +69,18 @@ defmodule Cingi.Mission do
 
 	def get(pid) do
 		GenServer.call(pid, :get)
+	end
+
+	def get_outpost(pid) do
+		GenServer.call(pid, :get_outpost)
+	end
+
+	def get_outpost_plan(pid) do
+		GenServer.call(pid, :get_outpost_plan)
+	end
+
+	def set_as_running(pid, field_agent_pid) do
+		GenServer.call(pid, {:set_as_running, field_agent_pid})
 	end
 
 	def get_output(pid, output_key) do
@@ -104,7 +108,7 @@ defmodule Cingi.Mission do
 			key: case mission.key do
 				"" -> construct_key(mission.cmd)
 				_ -> mission.key
-			end
+			end,
 		}
 
 		case mission do
@@ -152,9 +156,12 @@ defmodule Cingi.Mission do
 	end
 
 	defp construct_map_opts(map) do
-		new_map = [key: construct_key(map["name"]), input_file: map["input"]]
-		submissions = map["missions"]
+		new_map = [
+			key: construct_key(map["name"]),
+			input_file: map["input"],
+		]
 
+		submissions = map["missions"]
 		new_map ++ cond do
 			is_map(submissions) -> [submissions: submissions]
 			is_list(submissions) -> [submissions: submissions]
@@ -228,23 +235,6 @@ defmodule Cingi.Mission do
 		{:noreply, %Mission{mission | submission_pids: submission_pids}}
 	end
 
-	def handle_cast(:run_bash_process, mission) do
-		script = "./priv/bin/wrapper.sh"
-		cmds = [mission.cmd] ++ case mission.input_file do
-			nil -> []
-			_ -> [mission.input_file]
-		end
-
-		# Porcelain's basic driver only takes nil or :out for err
-		err = case mission.output_with_stderr do
-			true -> :out
-			false -> nil
-		end
-
-		proc = Porcelain.spawn(script, cmds, out: {:send, self()}, err: err)
-		{:noreply, %Mission{mission | bash_process: proc}}
-	end
-
 	def handle_cast({:run_submissions, prev_pid}, mission) do
 		[running, remaining] = case mission.submissions do
 			%{} -> [Enum.map(mission.submissions, &convert_parallel_mission/1), %{}]
@@ -273,12 +263,8 @@ defmodule Cingi.Mission do
 	# CALLS #
 	#########
 
-	def handle_call({:run, headquarters_pid}, _from, mission) do
-		cond do
-			mission.cmd -> Mission.run_bash_process(self())
-			mission.submissions -> Mission.run_submissions(self())
-		end
-		mission = %Mission{mission | running: true, headquarters_pid: headquarters_pid}
+	def handle_call({:set_as_running, field_agent}, _from, mission) do
+		mission = %Mission{mission | running: true, field_agent_pid: field_agent}
 		{:reply, mission, mission}
 	end
 
@@ -301,27 +287,17 @@ defmodule Cingi.Mission do
 		{:reply, output, mission}
 	end
 
-	#########
-	# INFOS #
-	#########
-
-	def handle_info({_pid, :data, :out, data}, mission) do
-		add_to_output(mission, data: data, type: :out)
+	def handle_call(:get_outpost, _from, mission) do
+		field_agent = FieldAgent.get(mission.field_agent_pid)
+		{:reply, field_agent.outpost_pid, mission}
 	end
 
-	def handle_info({_pid, :data, :err, data}, mission) do
-		add_to_output(mission, data: data, type: :err)
-	end
-
-	def handle_info({_pid, :result, result}, mission) do
-		Mission.send_result(self(), self(), result)
-		{:noreply, mission}
-	end
-
-	defp add_to_output(mission, opts) do
-		time = :os.system_time(:millisecond)
-		Mission.send(self(), opts ++ [timestamp: time, pid: []])
-		{:noreply, mission}
+	def handle_call(:get_outpost_plan, _from, mission) do
+		plan = case mission.decoded_yaml do
+			%{"outpost" => plan} -> plan
+			_ -> nil
+		end
+		{:reply, plan, mission}
 	end
 
 end

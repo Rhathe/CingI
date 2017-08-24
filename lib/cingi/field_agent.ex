@@ -6,13 +6,15 @@ defmodule Cingi.FieldAgent do
 	"""
 
 	alias Cingi.FieldAgent
+	alias Cingi.Headquarters
 	alias Cingi.Outpost
 	alias Cingi.Mission
 	use GenServer
 
 	defstruct [
-		mission: nil,
-		outpost: nil
+		mission_pid: nil,
+		outpost_pid: nil,
+		bash_pid: nil,
 	]
 
 	# Client API
@@ -29,6 +31,9 @@ defmodule Cingi.FieldAgent do
 		GenServer.cast(pid, :run_mission)
 	end
 
+	def run_bash_process(pid) do
+		GenServer.cast(pid, :run_bash_process)
+	end
 
 	# Server Callbacks
 
@@ -38,12 +43,12 @@ defmodule Cingi.FieldAgent do
 		{:ok, field_agent}
 	end
 
-	def handle_call(:get, _from, outpost) do
-		{:reply, outpost, outpost}
+	def handle_call(:get, _from, field_agent) do
+		{:reply, field_agent, field_agent}
 	end
 
-	def handle_cast(:run_mission, field_agent) do
-		mission = Mission.get(field_agent.mission)
+	def handle_cast(:run_bash_process, field_agent) do
+		mission = Mission.get(field_agent.mission_pid)
 		script = "./priv/bin/wrapper.sh"
 		cmds = [mission.cmd] ++ case mission.input_file do
 			nil -> []
@@ -57,6 +62,21 @@ defmodule Cingi.FieldAgent do
 		end
 
 		proc = Porcelain.spawn(script, cmds, out: {:send, self()}, err: err)
+		{:noreply, %FieldAgent{field_agent | bash_pid: proc}}
+	end
+
+	def handle_cast(:run_mission, field_agent) do
+		mpid = field_agent.mission_pid
+		mission = Mission.get(mpid)
+
+		cond do
+			mission.cmd -> FieldAgent.run_bash_process(self())
+			mission.submissions -> Mission.run_submissions(mpid)
+		end
+
+		Mission.set_as_running(mpid, self())
+		Outpost.mission_has_run(field_agent.outpost_pid, mpid)
+
 		{:noreply, field_agent}
 	end
 
@@ -73,13 +93,13 @@ defmodule Cingi.FieldAgent do
 	end
 
 	def handle_info({_pid, :result, result}, field_agent) do
-		Mission.send_result(self(), self(), result)
+		Mission.send_result(field_agent.mission_pid, self(), result)
 		{:noreply, field_agent}
 	end
 
 	defp add_to_output(field_agent, opts) do
 		time = :os.system_time(:millisecond)
-		Mission.send(self(), opts ++ [timestamp: time, pid: []])
+		Mission.send(field_agent.mission_pid, opts ++ [timestamp: time, pid: []])
 		{:noreply, field_agent}
 	end
 end
