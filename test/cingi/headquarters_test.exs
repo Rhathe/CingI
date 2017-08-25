@@ -188,6 +188,33 @@ defmodule CingiHeadquartersTest do
 		assert ^match_check = matches
 	end
 
+	test "make sure inputs are passed correctly to nested missions" do
+		res = create_mission_report([file: "test/mission_plans/nested.plan"])
+		pid = res[:pid]
+		Headquarters.resume(pid)
+		mission = wait_for_exit_code(res[:mission_pid])
+		output = mission.output |> Enum.map(&(&1[:data]))
+		assert [
+			"blah1\n",
+			"blah1\n",
+			"1match1\n",
+			"2match2\n",
+			"1match3\n",
+			"2match1\n",
+			"ignored\n",
+			"1match4\n",
+			"2match5\n",
+			"1match1\n2match2\n1match3\n2match1\n1match4\n2match5\n",
+			"2match2\n2match1\n2match5\n",
+			a,
+			b,
+		] = output
+
+		sublist = [a, b]
+		assert "2match1\n" in sublist
+		assert "2match5\n" in sublist
+	end
+
 	test "generates correct outposts" do
 		res = create_mission_report([file: "test/mission_plans/outposts.plan"])
 		pid = res[:pid]
