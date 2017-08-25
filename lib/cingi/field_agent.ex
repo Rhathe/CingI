@@ -81,9 +81,12 @@ defmodule Cingi.FieldAgent do
 	def handle_cast(:run_bash_process, field_agent) do
 		mission = Mission.get(field_agent.mission_pid)
 		script = "./priv/bin/wrapper.sh"
-		cmds = [mission.cmd] ++ case mission.input_file do
+		{input_file, is_tmp} = init_input_file(mission)
+
+		cmds = [mission.cmd] ++ case input_file do
 			nil -> []
-			_ -> [mission.input_file]
+			false -> []
+			_ -> [input_file, is_tmp]
 		end
 
 		# Porcelain's basic driver only takes nil or :out for err
@@ -124,9 +127,26 @@ defmodule Cingi.FieldAgent do
 		{:noreply, field_agent}
 	end
 
+	###########
+	# HELPERS #
+	###########
+
 	defp add_to_output(field_agent, opts) do
 		time = :os.system_time(:millisecond)
 		Mission.send(field_agent.mission_pid, opts ++ [timestamp: time, pid: []])
 		{:noreply, field_agent}
+	end
+
+	# Return {path_of_file, _boolean_indicating_whether_its_a_tmp_file}
+	def init_input_file(mission) do
+		case mission.input_file do
+			"$" <> output_key ->
+				output = Mission.get_output(mission.prev_mission_pid, output_key)
+				{:ok, fd, path} = Temp.open
+				IO.write fd, output
+				File.close fd
+				{path, true}
+			_ -> {mission.input_file, false}
+		end
 	end
 end

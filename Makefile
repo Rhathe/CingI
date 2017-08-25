@@ -15,7 +15,6 @@ build-cli:
 
 test-cli:
 	make build-cli
-	#./cingi --file test/mission_plans/example1.plan
 	./cingi --file test/mission_plans/exits.plan
 
 kill-all-epmd:

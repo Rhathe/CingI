@@ -20,7 +20,7 @@ defmodule Cingi.Mission do
 		submissions: nil,
 		submissions_num: nil,
 
-		input_file: nil,
+		input_file: "$IN", # Get input by default
 		output: [],
 
 		listen_for_api: false, # Enable to listen in the output for any cingi api calls
@@ -52,13 +52,6 @@ defmodule Cingi.Mission do
 
 	def run_submissions(pid, prev_pid \\ nil) do
 		GenServer.cast(pid, {:run_submissions, prev_pid})
-	end
-
-	def init_input(pid) do
-		case pid do
-			nil -> nil
-			_ -> GenServer.cast(pid, :init_input)
-		end
 	end
 
 	def pause(pid) do
@@ -119,9 +112,6 @@ defmodule Cingi.Mission do
 			_ -> :ok
 		end
 
-		# Construct input file from previous output
-		Mission.init_input(self())
-
 		mission_pid = mission.supermission_pid
 		if mission_pid do Mission.initialized_submission(mission_pid, self()) end
 		MissionReport.initialized_mission(mission.report_pid, self())
@@ -160,7 +150,10 @@ defmodule Cingi.Mission do
 	defp construct_map_opts(map) do
 		new_map = [
 			key: construct_key(map["name"]),
-			input_file: map["input"],
+			input_file: case Map.has_key?(map, "input") do
+				false -> "$IN"
+				true -> map["input"]
+			end,
 		]
 
 		submissions = map["missions"]
@@ -230,19 +223,6 @@ defmodule Cingi.Mission do
 			running: running,
 			finished_submission_pids: sub_pids,
 		}}
-	end
-
-	def handle_cast(:init_input, mission) do
-		input_file = case mission.input_file do
-			"$" <> output_key ->
-				Temp.track!
-				output = Mission.get_output(mission.prev_mission_pid, output_key)
-				{:ok, fd, path} = Temp.open
-				IO.write fd, output
-				path
-			_ -> mission.input_file
-		end
-		{:noreply, %Mission{mission | input_file: input_file}}
 	end
 
 	def handle_cast({:data_and_metadata, data}, mission) do

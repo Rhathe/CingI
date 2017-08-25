@@ -229,7 +229,7 @@ defmodule CingiHeadquartersTest do
 		# 1 non-fail fast parallel mission
 		assert length(hq.finished_missions) == 11
 
-		Porcelain.spawn("bash", [ "-c", "echo -n endncat | ncat localhost 9991"])
+		Porcelain.exec("bash", [ "-c", "echo -n endncat | ncat localhost 9991"])
 		Helper.check_exit_code mpid
 
 		mission = Mission.get(mpid)

@@ -1,0 +1,19 @@
+missions:
+  - missions:
+    - echo blah1
+    - grep blah
+  - missions:
+    - echo 1match1
+    - echo 2match2
+    - echo 1match3
+    - echo 2match1
+    - echo ignored
+    - echo 1match4
+    - echo 2match5
+  - missions:
+    - grep match
+    - echo 2match6
+  - input: $IN
+    missions:
+    - grep 2match || exit 0
+    - echo end 

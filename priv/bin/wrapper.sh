@@ -1,24 +1,32 @@
 #!/bin/bash
 
 cmd=$1
+file="$2"
+del_tmp_file="$3"
 pid=""
 stdin_pid=""
 
 cleanup() {
 	exit_code=$?
+
+	# Indicated to be a tmp_file, delete here so that exit traps clean it up
+	if [ "$del_tmp_file" = "true" ]; then
+		rm "$file" > /dev/null 2>&1
+	fi
 	kill -KILL $pid > /dev/null 2>&1
 	kill -KILL $stdin_pid > /dev/null 2>&1
-	#echo "exiting with code $exit_code, pids $pid and $stdin_pid"
 	exit $exit_code
 }
 
 trap cleanup EXIT
 
-if [ "$#" -eq "2" ]; then
-	bash -c "cat $2 | $1"&
+if [ "$#" -eq "1" ]; then
+	bash -c "$cmd"&
 	pid=$!
 else
-	bash -c "$cmd"&
+	# Pipe input file to cmd with cat, suppress stderr since
+	# pipe can be broken but we don't care
+	(cat "$file" 2> /dev/null) | (bash -c "$cmd") &
 	pid=$!
 fi
 
