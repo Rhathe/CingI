@@ -11,9 +11,11 @@ missions:
     - echo 1match4
     - echo 2match5
   - missions:
-    - grep match
-    - echo 2match6
-  - input: $IN
-    missions:
-    - grep 2match || exit 0
-    - echo end 
+    - missions:
+      - grep match
+  - missions:
+    - grep 2match
+  - missions:
+    - missions:
+        5: grep 5
+        1: grep 1

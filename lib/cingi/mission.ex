@@ -25,7 +25,7 @@ defmodule Cingi.Mission do
 
 		listen_for_api: false, # Enable to listen in the output for any cingi api calls
 		output_with_stderr: false, # Stderr will be printed to ouput if false, redirected to output if true
-		fail_fast: true,
+		fail_fast: true, # fail_fast true by default, but if parallel will default to false
 		running: false,
 		finished: false,
 
@@ -158,8 +158,11 @@ defmodule Cingi.Mission do
 
 		submissions = map["missions"]
 		new_map ++ cond do
-			is_map(submissions) -> [submissions: submissions, fail_fast: map["fail_fast"] || false]
-			is_list(submissions) -> [submissions: submissions]
+			is_map(submissions) -> [
+				submissions: submissions,
+				fail_fast: map["fail_fast"] || false # By default parallel missions don't fail fast
+			]
+			is_list(submissions) -> [submissions: submissions] # Concept of fail_fast does not exist for sequential messions
 			true -> [cmd: submissions]
 		end
 	end

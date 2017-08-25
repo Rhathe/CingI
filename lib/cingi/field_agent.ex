@@ -55,7 +55,7 @@ defmodule Cingi.FieldAgent do
 
 		cond do
 			mission.cmd -> FieldAgent.run_bash_process(self())
-			mission.submissions -> Mission.run_submissions(mpid)
+			mission.submissions -> Mission.run_submissions(mpid, mission.prev_mission_pid)
 		end
 
 		{:ok, field_agent}
