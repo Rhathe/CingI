@@ -7,7 +7,6 @@ missions:
           - exit 7
           - echo "Should not be in seq_fail_fast"
       continue:
-        fail_fast: false
         missions:
           - echo "seq_continue"
           - exit 9

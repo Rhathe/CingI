@@ -92,8 +92,8 @@ defmodule CingiHeadquartersTest do
 		assert length(hq.finished_missions) == 0
 
 		mission = Mission.get(res[:mission_pid])
-		assert %{output: [], exit_code: nil, submission_pids: [sm1]} = mission
-		submission1 = Mission.get(sm1)
+		assert %{output: [], exit_code: nil, submission_holds: [sm1]} = mission
+		submission1 = Mission.get(sm1.pid)
 		assert %{cmd: "ncat -l -i 1 8000", running: true, finished: false} = submission1
 
 		Porcelain.spawn("bash", [ "-c", "echo -n blah1 | nc localhost 8000"])
@@ -104,11 +104,12 @@ defmodule CingiHeadquartersTest do
 		assert length(hq.finished_missions) == 1
 
 		mission = Mission.get(res[:mission_pid])
-		assert %{output: output, exit_code: nil, submission_pids: [sm1, sm2]} = mission
-		assert [[data: "blah1", type: :out, timestamp: _, pid: [^sm1]]] = output
+		assert %{output: output, exit_code: nil, submission_holds: [sm1, sm2]} = mission
+		sm1pid = sm1.pid
+		assert [[data: "blah1", type: :out, timestamp: _, pid: [^sm1pid]]] = output
 
-		submission1 = Mission.get(sm1)
-		submission2 = Mission.get(sm2)
+		submission1 = Mission.get(sm1.pid)
+		submission2 = Mission.get(sm2.pid)
 
 		assert %{cmd: "ncat -l -i 1 8000", running: false, finished: true} = submission1
 		assert %{cmd: "ncat -l -i 1 8001", running: true, finished: false} = submission2
@@ -116,13 +117,15 @@ defmodule CingiHeadquartersTest do
 		Porcelain.spawn("bash", [ "-c", "echo -n blah2 | nc localhost 8001"])
 		mission = wait_for_exit_code(res[:mission_pid])
 
+		sm1pid = sm1.pid
+		sm2pid = sm2.pid
 		assert %{output: output, exit_code: 0} = mission
 		assert [
-			[data: "blah1", type: :out, timestamp: _, pid: [^sm1]],
-			[data: "blah2", type: :out, timestamp: _, pid: [^sm2]]
+			[data: "blah1", type: :out, timestamp: _, pid: [^sm1pid]],
+			[data: "blah2", type: :out, timestamp: _, pid: [^sm2pid]]
 		] = output
 
-		submission2 = Mission.get(sm2)
+		submission2 = Mission.get(sm2.pid)
 		assert %{cmd: "ncat -l -i 1 8001", running: false, finished: true} = submission2
 
 		hq = wait_for_finished_missions(pid, 3)
@@ -144,7 +147,7 @@ defmodule CingiHeadquartersTest do
 		assert length(hq.queued_missions) == 0
 		assert length(hq.running_missions) == 5
 
-		finish = &(Porcelain.spawn("bash", [ "-c", "echo -n blah#{&1} | nc localhost 900#{&1}"]))
+		finish = &(Porcelain.exec("bash", [ "-c", "echo -n blah#{&1} | ncat localhost 900#{&1}"]))
 
 		finish.(3)
 		wait_for_submissions_finish(res[:mission_pid], 1)
@@ -163,11 +166,12 @@ defmodule CingiHeadquartersTest do
 			[data: "blah1", type: :out, timestamp: _, pid: [pid4]]
 		], exit_code: 0} = mission
 
+		pids = mission.submission_holds |> Enum.map(&(&1.pid))
 		assert pid1 != pid2 != pid3 != pid4
-		assert pid1 in mission.submission_pids
-		assert pid2 in mission.submission_pids
-		assert pid3 in mission.submission_pids
-		assert pid4 in mission.submission_pids
+		assert pid1 in pids
+		assert pid2 in pids
+		assert pid3 in pids
+		assert pid4 in pids
 	end
 
 	test "runs example file" do
@@ -302,7 +306,7 @@ defmodule CingiHeadquartersTest do
 
 	defp wait_for_submissions_finish(pid, n) do
 		mission = Mission.get(pid)
-		pids = mission.submission_pids
+		pids = Enum.map(mission.submission_holds, &(&1.pid))
 		sum = length(Enum.filter(pids, &(not is_nil(Mission.get(&1).exit_code))))
 		cond do
 			n <= sum -> mission

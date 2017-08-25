@@ -10,8 +10,7 @@ defmodule Cingi.Mission do
 		report_pid: nil,
 		prev_mission_pid: nil,
 		supermission_pid: nil,
-		submission_pids: [],
-		finished_submission_pids: [],
+		submission_holds: [],
 		field_agent_pid: nil,
 
 		decoded_yaml: nil,
@@ -162,7 +161,10 @@ defmodule Cingi.Mission do
 				submissions: submissions,
 				fail_fast: map["fail_fast"] || false # By default parallel missions don't fail fast
 			]
-			is_list(submissions) -> [submissions: submissions] # Concept of fail_fast does not exist for sequential messions
+			is_list(submissions) -> [
+				submissions: submissions,
+				fail_fast: map["fail_fast"] || true # By default sequential missions fail fast
+			]
 			true -> [cmd: submissions]
 		end
 	end
@@ -172,15 +174,15 @@ defmodule Cingi.Mission do
 	#########
 
 	def handle_cast({:finished, result, prev_mpid}, mission) do
-		# Add prev_mpid to finished submissions
-		sub_pids = mission.finished_submission_pids
-		sub_pids = case prev_mpid do
-			nil -> sub_pids
-			x -> sub_pids ++ [x]
-		end
+		# Indicate that prev_mpid has finished 
+		sh = update_in_list(
+			mission.submission_holds,
+			fn({h, _}) -> h.pid == prev_mpid end,
+			fn(h) -> Map.replace(h, :finished, true) end
+		)
 
-		exit_codes = sub_pids
-			|> Enum.map(&(Mission.get(&1).exit_code))
+		exit_codes = sh
+			|> Enum.map(&(Mission.get(&1.pid).exit_code))
 			|> Enum.filter(&(&1))
 
 		# Check if a failure should trigger a fail_fast behavior
@@ -191,8 +193,8 @@ defmodule Cingi.Mission do
 		# If a fail_fast situation is warranted,
 		# Send kill signal to all submissions
 		if (check) do
-			mission.submission_pids
-				|> Enum.map(&Mission.get/1)
+			sh
+				|> Enum.map(&(Mission.get(&1.pid)))
 				|> Enum.map(&(FieldAgent.stop(&1.field_agent_pid)))
 		end
 
@@ -224,7 +226,7 @@ defmodule Cingi.Mission do
 			exit_code: exit_code,
 			finished: finished,
 			running: running,
-			finished_submission_pids: sub_pids,
+			submission_holds: sh,
 		}}
 	end
 
@@ -241,8 +243,13 @@ defmodule Cingi.Mission do
 	end
 
 	def handle_cast({:init_submission, pid}, mission) do
-		submission_pids = mission.submission_pids ++ [pid]
-		{:noreply, %Mission{mission | submission_pids: submission_pids}}
+		sh = update_in_list(
+			mission.submission_holds,
+			fn({h, _}) -> is_nil(h.pid) end,
+			fn(h) -> Map.replace(h, :pid, pid) end
+		)
+
+		{:noreply, %Mission{mission | submission_holds: sh}}
 	end
 
 	def handle_cast({:run_submissions, prev_pid}, mission) do
@@ -252,12 +259,14 @@ defmodule Cingi.Mission do
 			[] -> [[], []]
 		end
 
-		for submission <- running do
+		sh = mission.submission_holds
+		sh = sh ++ for submission <- running do
 			opts = [decoded_yaml: submission, supermission_pid: self(), prev_mission_pid: prev_pid]
 			MissionReport.init_mission(mission.report_pid, opts)
+			%{pid: nil, finished: false}
 		end
 
-		{:noreply, %Mission{mission | submissions: remaining}}
+		{:noreply, %Mission{mission | submissions: remaining, submission_holds: sh}}
 	end
 
 	defp convert_parallel_mission({key, value}) do
@@ -310,4 +319,16 @@ defmodule Cingi.Mission do
 		{:reply, plan, mission}
 	end
 
+	defp update_in_list(list, filter, update) do
+		case list do
+			[] -> []
+			_ ->
+				{el, index} = list
+					|> Enum.with_index
+					|> Enum.find(filter)
+
+				el = update.(el)
+				List.replace_at(list, index, el)
+		end
+	end
 end

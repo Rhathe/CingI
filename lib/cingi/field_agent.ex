@@ -69,8 +69,8 @@ defmodule Cingi.FieldAgent do
 		mission = Mission.get(field_agent.mission_pid)
 		case mission.cmd do
 			nil ->
-				mission.submission_pids |> Enum.map(fn(s) ->
-					sub = Mission.get(s)
+				mission.submission_holds |> Enum.map(fn(h) ->
+					sub = Mission.get(h.pid)
 					FieldAgent.stop(sub.field_agent_pid)
 				end)
 			_ -> Proc.send_input field_agent.proc, "kill\n"
