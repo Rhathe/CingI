@@ -213,9 +213,8 @@ defmodule Cingi.Mission do
 			{nil, _} ->
 				Mission.run_submissions(self(), prev_mpid)
 				[false, true]
-			{0, true} ->
-				raise "Got a finished message but already finished"
 			{_, true} ->
+				# If mission already finished, do nothing
 				[true, false]
 			_ ->
 				FieldAgent.mission_has_finished(mission.field_agent_pid, result)
