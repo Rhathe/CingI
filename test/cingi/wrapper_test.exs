@@ -1,8 +1,17 @@
 defmodule WrapperTest do
 	use ExUnit.Case
+	alias Porcelain.Process, as: Proc
 
 	test "runs echo" do
-		assert "blah\n" = exec(["echo blah"]).out
+		proc = exec(["echo blah"])
+		assert "blah\n" = proc.out
+		assert 0 = proc.status
+	end
+
+	test "gets exit_code" do
+		proc = exec(["exit 5"])
+		assert "" = proc.out
+		assert 5 = proc.status
 	end
 
 	test "runs ncat" do
@@ -23,12 +32,54 @@ defmodule WrapperTest do
 		isnt_running cmd
 	end
 
-	defp exec(cmds) do
-		Porcelain.exec("priv/bin/wrapper.sh", cmds)
+	test "runs ncat, kills ncat process, also deletes tmp_file" do
+		cmd = "ncat -l -i 1 8501"
+		path = tmp_file("")
+		t = _spawn [cmd, path, "true"]
+		is_running cmd
+		Process.exit t.pid, "test"
+		isnt_running cmd
+		assert false == File.exists? path
 	end
 
-	defp _spawn(cmds) do
-		Porcelain.spawn("priv/bin/wrapper.sh", cmds)
+	test "file piping works" do
+		path = tmp_file("match1\nignored\nmatch2")
+		assert "match1\nmatch2\n" = exec(["grep match", path]).out
+		assert File.exists? path
+		File.rm path
+	end
+
+	test "file piping autoremoves file" do
+		path = tmp_file("match1\nignored\nmatch2")
+		assert "match1\nmatch2\n" = exec(["grep match", path, "true"]).out
+		assert false == File.exists? path
+	end
+
+	test "file piping works even without needing it" do
+		path = tmp_file("match1\nignored\nmatch2")
+		assert "blah\n" = exec(["echo blah", path, "true"]).out
+	end
+
+	test "stdin receiving kill kills process" do
+		path = tmp_file("one\ntwo\nkill\nfour")
+		cmd = "sleep 1"
+		proc = exec [cmd], {:path, path}
+		assert 137 = proc.status
+	end
+
+	test "stdin receiving anything else doesn't kill process" do
+		path = tmp_file("one\ntwo\nthree\nfour")
+		cmd = "exit 5"
+		proc = exec [cmd], {:path, path}
+		assert 5 = proc.status
+	end
+
+	defp exec(cmds, input \\ nil) do
+		Porcelain.exec("priv/bin/wrapper.sh", cmds, in: input)
+	end
+
+	defp _spawn(cmds, input \\ nil) do
+		Porcelain.spawn("priv/bin/wrapper.sh", cmds, in: input)
 	end
 
 	defp is_running(cmd) do
@@ -47,7 +98,15 @@ defmodule WrapperTest do
 		n
 	end
 
-	defp async_exec(cmds) do
-		Task.async(fn() -> exec(cmds) end)
+	defp async_exec(cmds, input \\ nil) do
+		Task.async(fn() -> exec(cmds, input) end)
+	end
+
+	defp tmp_file(content) do
+		Temp.track!
+		{:ok, fd, path} = Temp.open
+		IO.write fd, content
+		File.close fd
+		path
 	end
 end
