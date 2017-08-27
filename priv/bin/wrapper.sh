@@ -39,6 +39,7 @@ fi
 			cleanup
 		fi
 	done
+	cleanup
 } <&0 &
 stdin_pid=$!
 
