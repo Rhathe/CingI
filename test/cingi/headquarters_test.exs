@@ -57,10 +57,10 @@ defmodule CingiHeadquartersTest do
 		Headquarters.resume(pid)
 		Helper.check_exit_code mpid
 
-		hq = wait_for_finished_missions(pid, 1)
+		hq = Helper.wait_for_finished_missions(pid, 1)
 		assert length(hq.queued_missions) == 0
 		assert length(hq.finished_missions) == 1
-		mission = wait_for_exit_code(res[:mission_pid])
+		mission = Helper.check_exit_code(res[:mission_pid])
 		assert [[data: "1\n", type: :out, timestamp: _, pid: []]] = mission.output
 	end
 
@@ -71,7 +71,7 @@ defmodule CingiHeadquartersTest do
 		res = create_mission_report([string: "\nmissions:\n#{cmd_1}\n#{grep_cmd}\n  - echo end"])
 		pid = res[:pid]
 		Headquarters.resume(pid)
-		mission = wait_for_exit_code(res[:mission_pid])
+		mission = Helper.check_exit_code(res[:mission_pid])
 
 		outputs = mission.output
 			|> Enum.map(&(String.split(&1[:data], "\n", trim: true)))
@@ -86,7 +86,7 @@ defmodule CingiHeadquartersTest do
 		pid = res[:pid]
 		Headquarters.resume(pid)
 
-		hq = wait_for_running_missions(pid, 2)
+		hq = Helper.wait_for_running_missions(pid, 2)
 		assert length(hq.queued_missions) == 0
 		assert length(hq.running_missions) == 2
 		assert length(hq.finished_missions) == 0
@@ -96,9 +96,10 @@ defmodule CingiHeadquartersTest do
 		submission1 = Mission.get(sm1.pid)
 		assert %{cmd: "ncat -l -i 1 8000", running: true, finished: false} = submission1
 
-		Porcelain.spawn("bash", [ "-c", "echo -n blah1 | nc localhost 8000"])
-		wait_for_finished_missions(pid, 1)
-		hq = wait_for_running_missions(pid, 2)
+		Porcelain.exec("bash", [ "-c", "echo -n blah1 | ncat localhost 8000"])
+		Helper.wait_for_finished_missions(pid, 1)
+		hq = Helper.wait_for_running_missions(pid, 2)
+
 		assert length(hq.queued_missions) == 0
 		assert length(hq.running_missions) == 2
 		assert length(hq.finished_missions) == 1
@@ -114,8 +115,8 @@ defmodule CingiHeadquartersTest do
 		assert %{cmd: "ncat -l -i 1 8000", running: false, finished: true} = submission1
 		assert %{cmd: "ncat -l -i 1 8001", running: true, finished: false} = submission2
 
-		Porcelain.spawn("bash", [ "-c", "echo -n blah2 | nc localhost 8001"])
-		mission = wait_for_exit_code(res[:mission_pid])
+		Porcelain.spawn("bash", [ "-c", "echo -n blah2 | ncat localhost 8001"])
+		mission = Helper.check_exit_code(res[:mission_pid])
 
 		sm1pid = sm1.pid
 		sm2pid = sm2.pid
@@ -128,7 +129,7 @@ defmodule CingiHeadquartersTest do
 		submission2 = Mission.get(sm2.pid)
 		assert %{cmd: "ncat -l -i 1 8001", running: false, finished: true} = submission2
 
-		hq = wait_for_finished_missions(pid, 3)
+		hq = Helper.wait_for_finished_missions(pid, 3)
 		assert length(hq.queued_missions) == 0
 		assert length(hq.running_missions) == 0
 		assert length(hq.finished_missions) == 3
@@ -143,22 +144,22 @@ defmodule CingiHeadquartersTest do
 		pid = res[:pid]
 		Headquarters.resume(pid)
 
-		hq = wait_for_running_missions(pid, 5)
+		hq = Helper.wait_for_running_missions(pid, 5)
 		assert length(hq.queued_missions) == 0
 		assert length(hq.running_missions) == 5
 
 		finish = &(Porcelain.exec("bash", [ "-c", "echo -n blah#{&1} | ncat localhost 900#{&1}"]))
 
 		finish.(3)
-		wait_for_submissions_finish(res[:mission_pid], 1)
+		Helper.wait_for_submissions_finish(res[:mission_pid], 1)
 		finish.(2)
-		wait_for_submissions_finish(res[:mission_pid], 2)
+		Helper.wait_for_submissions_finish(res[:mission_pid], 2)
 		finish.(4)
-		wait_for_submissions_finish(res[:mission_pid], 3)
+		Helper.wait_for_submissions_finish(res[:mission_pid], 3)
 		finish.(1)
-		wait_for_submissions_finish(res[:mission_pid], 4)
+		Helper.wait_for_submissions_finish(res[:mission_pid], 4)
 
-		mission = wait_for_exit_code(res[:mission_pid])
+		mission = Helper.check_exit_code(res[:mission_pid])
 		assert %{output: [
 			[data: "blah3", type: :out, timestamp: _, pid: [pid1]],
 			[data: "blah2", type: :out, timestamp: _, pid: [pid2]],
@@ -178,7 +179,7 @@ defmodule CingiHeadquartersTest do
 		res = create_mission_report([file: "test/mission_plans/example1.plan"])
 		pid = res[:pid]
 		Headquarters.resume(pid)
-		mission = wait_for_exit_code(res[:mission_pid])
+		mission = Helper.check_exit_code(res[:mission_pid])
 		output = mission.output |> Enum.map(&(&1[:data]))
 		assert ["beginning\n", a, b, c, d, e, f, grepped, "end\n"] = output
 
@@ -196,7 +197,7 @@ defmodule CingiHeadquartersTest do
 		res = create_mission_report([file: "test/mission_plans/nested.plan"])
 		pid = res[:pid]
 		Headquarters.resume(pid)
-		mission = wait_for_exit_code(res[:mission_pid])
+		mission = Helper.check_exit_code(res[:mission_pid])
 		output = mission.output |> Enum.map(&(&1[:data]))
 		assert [
 			"blah1\n",
@@ -245,7 +246,7 @@ defmodule CingiHeadquartersTest do
 		mpid = res[:mission_pid]
 		Headquarters.resume(pid)
 
-		hq = wait_for_finished_missions(pid, 11)
+		hq = Helper.wait_for_finished_missions(pid, 11)
 		assert length(hq.queued_missions) == 0
 
 		# non-fail fast ncat task, its parent,
@@ -278,39 +279,5 @@ defmodule CingiHeadquartersTest do
 		{:ok, pid} = Headquarters.start_link()
 		Headquarters.pause(pid)
 		pid
-	end
-
-	defp wait_for_exit_code(pid) do
-		mission = Mission.get(pid)
-		case mission.exit_code do
-			nil -> wait_for_exit_code(pid)
-			_ -> mission
-		end
-	end
-
-	defp wait_for_running_missions(pid, n) do
-		hq = Headquarters.get(pid)
-		cond do
-			n <= length(hq.running_missions) -> hq
-			true -> wait_for_running_missions(pid, n)
-		end
-	end
-
-	defp wait_for_finished_missions(pid, n) do
-		hq = Headquarters.get(pid)
-		cond do
-			n <= length(hq.finished_missions) -> hq
-			true -> wait_for_finished_missions(pid, n)
-		end
-	end
-
-	defp wait_for_submissions_finish(pid, n) do
-		mission = Mission.get(pid)
-		pids = Enum.map(mission.submission_holds, &(&1.pid))
-		sum = length(Enum.filter(pids, &(not is_nil(Mission.get(&1).exit_code))))
-		cond do
-			n <= sum -> mission
-			true -> wait_for_submissions_finish(pid, n)
-		end
 	end
 end
