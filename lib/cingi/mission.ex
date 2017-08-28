@@ -174,7 +174,7 @@ defmodule Cingi.Mission do
 	#########
 
 	def handle_cast({:finished, result, prev_mpid}, mission) do
-		# Indicate that prev_mpid has finished 
+		# Indicate that prev_mpid has finished
 		sh = update_in_list(
 			mission.submission_holds,
 			fn({h, _}) -> h.pid == prev_mpid end,

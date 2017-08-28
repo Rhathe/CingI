@@ -17,6 +17,7 @@ cleanup() {
 		rm "$file" > /dev/null 2>&1
 	fi
 
+	kill -KILL "$PID" > /dev/null 2>&1
 	kill -KILL -"$PID" > /dev/null 2>&1
 	kill -KILL -"$PGID" > /dev/null 2>&1
 	kill -KILL $STDIN_PID > /dev/null 2>&1
