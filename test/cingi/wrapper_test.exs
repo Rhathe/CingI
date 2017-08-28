@@ -32,6 +32,23 @@ defmodule WrapperTest do
 		isnt_running cmd
 	end
 
+	test "background processes get killed" do
+		cmd = "sleep 9"
+		path = tmp_file("#/bin/sh\nsleep 9 &\npid=$!\nwait $pid")
+		t = _spawn ["bash #{path}"]
+
+		# Wait until sleep actually shows up as a process
+		Helper.timing(fn() ->
+			[get_process_lines(cmd) > 2, nil]
+		end)
+
+		is_running cmd
+		Process.exit t.pid, "test"
+		isnt_running cmd
+		File.rm path
+	end
+
+
 	test "runs ncat, kills ncat process, also deletes tmp_file" do
 		cmd = "ncat -l -i 1 8501"
 		path = tmp_file("")
@@ -62,7 +79,7 @@ defmodule WrapperTest do
 
 	test "stdin receiving kill kills process" do
 		path = tmp_file("one\ntwo\nkill\nfour")
-		cmd = "sleep 1"
+		cmd = "sleep 2"
 		proc = exec [cmd], {:path, path}
 		assert 137 = proc.status
 	end
