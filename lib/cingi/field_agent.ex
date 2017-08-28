@@ -139,14 +139,31 @@ defmodule Cingi.FieldAgent do
 
 	# Return {path_of_file, _boolean_indicating_whether_its_a_tmp_file}
 	def init_input_file(mission) do
-		case mission.input_file do
-			"$" <> output_key ->
-				output = Mission.get_output(mission.prev_mission_pid, output_key)
+		input = case mission.input_file do
+			n when n in [nil, false, []] -> []
+			[_|_] -> mission.input_file
+			input -> [input]
+		end
+
+		input = input
+			|> Enum.map(fn (x) ->
+				case x do
+					"$IN" -> Mission.get_output(mission.prev_mission_pid)
+					x -> case Regex.named_captures(~r/\$IN\[['"](?<key>.+)['"]\]/, x) do
+						%{"key" => key} -> Mission.get_output(mission.prev_mission_pid, key)
+						nil -> ""
+					end
+				end
+			end)
+
+		case input do
+			[] -> {nil, false}
+			input ->
+				input = Enum.join(input)
 				{:ok, fd, path} = Temp.open
-				IO.write fd, output
+				IO.write fd, input
 				File.close fd
 				{path, true}
-			_ -> {mission.input_file, false}
 		end
 	end
 end
