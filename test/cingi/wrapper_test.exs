@@ -1,6 +1,5 @@
 defmodule WrapperTest do
 	use ExUnit.Case
-	alias Porcelain.Process, as: Proc
 
 	test "runs echo" do
 		proc = exec(["echo blah"])
