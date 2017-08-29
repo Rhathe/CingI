@@ -1,5 +1,6 @@
 defmodule Helper do
 	alias Cingi.Mission
+	alias Cingi.MissionReport
 	alias Cingi.Headquarters
 
 	def check_exit_code(pid) do
@@ -44,5 +45,22 @@ defmodule Helper do
 			[false, nil, _] -> timing(fnc, limit, start)
 			[_, _, val] -> val
 		end
+	end
+
+	def create_mission_report(opts) do
+		{:ok, pid} = Headquarters.start_link()
+		Headquarters.pause(pid)
+		report_pid = Headquarters.create_report(pid, opts)
+		hq = Headquarters.get(pid)
+		mission_pid = Enum.at(hq.queued_missions, 0)
+
+		[
+			hq: hq,
+			report: MissionReport.get(report_pid),
+			mission: Mission.get(mission_pid),
+			pid: pid,
+			report_pid: report_pid,
+			mission_pid: mission_pid
+		]
 	end
 end
