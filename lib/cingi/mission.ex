@@ -25,7 +25,7 @@ defmodule Cingi.Mission do
 		listen_for_api: false, # Enable to listen in the output for any cingi api calls
 		output_with_stderr: false, # Stderr will be printed to ouput if false, redirected to output if true
 		fail_fast: true, # fail_fast true by default, but if parallel will default to false
-		skipped: false, 
+		skipped: false,
 
 		running: false,
 		finished: false,
@@ -68,10 +68,6 @@ defmodule Cingi.Mission do
 		GenServer.call(pid, :get)
 	end
 
-	def can_run(pid) do
-		GenServer.call(pid, :can_run)
-	end
-
 	def get_outpost(pid) do
 		GenServer.call(pid, :get_outpost)
 	end
@@ -110,6 +106,7 @@ defmodule Cingi.Mission do
 				"" -> construct_key(mission.cmd)
 				_ -> mission.key
 			end,
+			skipped: determine_skipped_status(mission.when),
 		}
 
 		case mission do
@@ -207,25 +204,33 @@ defmodule Cingi.Mission do
 				|> Enum.map(&(FieldAgent.stop(&1.field_agent_pid)))
 		end
 
-		exit_code = case length(exit_codes) do
-			0 -> result.status
-			_ -> cond do
-				check -> Enum.max(exit_codes)
-				length(exit_codes) != mission.submissions_num -> nil
-				true -> Enum.max(exit_codes)
-			end
+		# Boolean to check if more submissions need to run
+		more_submissions = not mission.skipped
+			and not check
+			and (length(exit_codes) != mission.submissions_num)
+
+		exit_code = cond do
+			length(exit_codes) == 0 -> result.status
+			more_submissions -> nil
+			true -> exit_codes
+				|> (fn(x) ->
+					case x do
+						[] -> nil
+						x -> Enum.max(x)
+					end
+				end).()
 		end
 
-		# If a nil exit code, then submissions have not finished and more should be queued up
+		# If submissions have not finished then more should be queued up
 		# Else tell the field agent that the mission is finished
-		[finished, running] = case {exit_code, mission.finished} do
-			{nil, _} ->
+		[finished, running] = cond do
+			more_submissions ->
 				Mission.run_submissions(self(), prev_mpid)
 				[false, true]
-			{_, true} ->
+			mission.finished ->
 				# If mission already finished, do nothing
 				[true, false]
-			_ ->
+			true ->
 				FieldAgent.mission_has_finished(mission.field_agent_pid, result)
 				[true, false]
 		end
@@ -265,6 +270,7 @@ defmodule Cingi.Mission do
 			%{} -> [Enum.map(mission.submissions, &convert_parallel_mission/1), %{}]
 			[a|b] -> [[a], b]
 			[] -> [[], []]
+			nil -> [[], nil]
 		end
 
 		sh = mission.submission_holds
@@ -303,10 +309,6 @@ defmodule Cingi.Mission do
 	def handle_call(:resume, _from, mission) do
 		mission = %Mission{mission | running: true}
 		{:reply, mission, mission}
-	end
-
-	def handle_call(:can_run, _from, mission) do
-		{:reply, true, mission}
 	end
 
 	def handle_call(:get, _from, mission) do
@@ -351,4 +353,12 @@ defmodule Cingi.Mission do
 				List.replace_at(list, index, el)
 		end
 	end
+
+	def determine_skipped_status(w) do
+		case w do
+			nil -> false
+			_ -> true
+		end
+	end
+
 end

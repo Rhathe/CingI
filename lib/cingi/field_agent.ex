@@ -52,10 +52,9 @@ defmodule Cingi.FieldAgent do
 
 		Mission.set_as_running(mpid, self())
 		Outpost.mission_has_run(field_agent.outpost_pid, mpid)
-		cant_run = not Mission.can_run(mpid)
 
 		cond do
-			cant_run -> FieldAgent.send_result(self(), %{status: nil})
+			mission.skipped -> FieldAgent.send_result(self(), %{status: nil})
 			mission.cmd -> FieldAgent.run_bash_process(self())
 			mission.submissions -> Mission.run_submissions(mpid, mission.prev_mission_pid)
 		end
