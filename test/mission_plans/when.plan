@@ -1,0 +1,43 @@
+fail_fast: false
+missions:
+  - fail_fast: false
+    missions:
+      - echo first
+      - echo second; exit 1
+      - missions:
+          success_regardless:
+            missions: echo "runs regardless"
+
+          success_with_exit_code:
+            when:
+              exit_codes:
+                - 1
+            missions: echo "runs because exit code 1"
+
+          fail_with_exit_code:
+            when:
+              exit_codes:
+                - 0
+            missions: echo "should not run because exit code 0"
+
+          success_with_success:
+            when:
+              success: true
+            missions: echo "runs because success"
+
+          fail_without_success:
+            when:
+              success: false
+            missions: echo "should not run because failure"
+
+          success_with_output:
+            when:
+              outputs:
+                - second
+            missions: echo "runs because of outputs"
+
+          fail_without_outputs:
+            when:
+              outputs:
+                - first
+            missions: echo "should not run because of outputs"

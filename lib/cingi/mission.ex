@@ -159,11 +159,11 @@ defmodule Cingi.Mission do
 		new_map ++ cond do
 			is_map(submissions) -> [
 				submissions: submissions,
-				fail_fast: map["fail_fast"] || false # By default parallel missions don't fail fast
+				fail_fast: Map.get(map, "fail_fast", false) || false # By default parallel missions don't fail fast
 			]
 			is_list(submissions) -> [
 				submissions: submissions,
-				fail_fast: map["fail_fast"] || true # By default sequential missions fail fast
+				fail_fast: Map.get(map, "fail_fast", true) || false # By default sequential missions fail fast
 			]
 			true -> [cmd: submissions]
 		end
