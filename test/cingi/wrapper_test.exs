@@ -105,6 +105,11 @@ defmodule WrapperTest do
 
 	defp isnt_running(cmd) do
 		# Only two processes,the bash -c and the actual grep
+		n = get_process_lines(cmd)
+
+		# Might have checked too fast, wait for a quarter of a second before checking again
+		# Since process dying from signal may not happen immediately
+		if n > 2 do Process.sleep(250) end
 		assert get_process_lines(cmd) <= 2
 	end
 
