@@ -106,7 +106,7 @@ defmodule Cingi.Mission do
 				"" -> construct_key(mission.cmd)
 				_ -> mission.key
 			end,
-			skipped: determine_skipped_status(mission.when),
+			skipped: determine_skipped_status(mission),
 		}
 
 		case mission do
@@ -354,10 +354,26 @@ defmodule Cingi.Mission do
 		end
 	end
 
-	def determine_skipped_status(w) do
-		case w do
-			nil -> false
-			_ -> true
+	def determine_skipped_status(mission) do
+		w = mission.when
+
+		case {w, mission.prev_mission_pid} do
+			{nil, _} -> false
+			{_, nil} -> true
+			{w, prev_pid} ->
+				prev = Mission.get(prev_pid)
+				output = prev.output
+					|> Enum.map(&(&1[:data]))
+					|> Enum.join("")
+					|> String.trim()
+
+				cond do
+					prev.exit_code in Map.get(w, "exit_codes", []) -> false
+					output in Map.get(w, "outputs", []) -> false
+					prev.exit_code == 0 and Map.get(w, "success") == true -> false
+					prev.exit_code > 0 and Map.get(w, "success") == false -> false
+					true -> true
+				end
 		end
 	end
 

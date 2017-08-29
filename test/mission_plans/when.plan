@@ -23,12 +23,12 @@ missions:
           success_with_success:
             when:
               success: true
-            missions: echo "runs because success"
+            missions: echo "should not run because success"
 
           fail_without_success:
             when:
               success: false
-            missions: echo "should not run because failure"
+            missions: echo "run because of failure"
 
           success_with_output:
             when:
