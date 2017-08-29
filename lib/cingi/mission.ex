@@ -30,7 +30,8 @@ defmodule Cingi.Mission do
 		running: false,
 		finished: false,
 
-		exit_code: nil
+		when: nil,
+		exit_code: nil,
 	]
 
 	# Client API
@@ -65,6 +66,10 @@ defmodule Cingi.Mission do
 
 	def get(pid) do
 		GenServer.call(pid, :get)
+	end
+
+	def can_run(pid) do
+		GenServer.call(pid, :can_run)
 	end
 
 	def get_outpost(pid) do
@@ -151,6 +156,7 @@ defmodule Cingi.Mission do
 	defp construct_map_opts(map) do
 		new_map = [
 			key: construct_key(map["name"]),
+			when: map["when"] || nil,
 			input_file: case Map.has_key?(map, "input") do
 				false -> "$IN"
 				true -> map["input"]
@@ -297,6 +303,10 @@ defmodule Cingi.Mission do
 	def handle_call(:resume, _from, mission) do
 		mission = %Mission{mission | running: true}
 		{:reply, mission, mission}
+	end
+
+	def handle_call(:can_run, _from, mission) do
+		{:reply, true, mission}
 	end
 
 	def handle_call(:get, _from, mission) do
