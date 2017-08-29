@@ -25,6 +25,8 @@ defmodule Cingi.Mission do
 		listen_for_api: false, # Enable to listen in the output for any cingi api calls
 		output_with_stderr: false, # Stderr will be printed to ouput if false, redirected to output if true
 		fail_fast: true, # fail_fast true by default, but if parallel will default to false
+		skipped: false, 
+
 		running: false,
 		finished: false,
 
@@ -182,8 +184,9 @@ defmodule Cingi.Mission do
 		)
 
 		exit_codes = sh
-			|> Enum.map(&(Mission.get(&1.pid).exit_code))
-			|> Enum.filter(&(&1))
+			|> Enum.map(&(Mission.get(&1.pid)))
+			|> Enum.filter(&(&1.finished))
+			|> Enum.map(&(&1.exit_code))
 
 		# Check if a failure should trigger a fail_fast behavior
 		check = length(exit_codes) > 0
