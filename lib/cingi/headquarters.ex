@@ -8,6 +8,8 @@ defmodule Cingi.Headquarters do
 
 	defstruct [
 		node: nil,
+		pid: nil,
+		name: nil,
 		running: true,
 		mission_reports: [],
 		queued_missions: [],
@@ -17,7 +19,7 @@ defmodule Cingi.Headquarters do
 	]
 
 	def start_link(opts \\ []) do
-		GenServer.start_link(__MODULE__, [], opts)
+		GenServer.start_link(__MODULE__, opts, opts)
 	end
 
 	def create_report(pid, yaml_tuple) do
@@ -58,8 +60,12 @@ defmodule Cingi.Headquarters do
 
 	# Server Callbacks
 
-	def init(_) do
-		headquarters = %Headquarters{node: Node.self}
+	def init(opts) do
+		headquarters = %Headquarters{
+			node: Node.self,
+			pid: self(),
+			name: opts[:name],
+		}
 		{:ok, headquarters}
 	end
 
