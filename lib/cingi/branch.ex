@@ -10,7 +10,6 @@ defmodule Cingi.Branch do
 		node: nil,
 		pid: nil,
 		name: nil,
-		branch_pid: nil,
 		running: true,
 		mission_reports: [],
 		queued_missions: [],
@@ -66,7 +65,6 @@ defmodule Cingi.Branch do
 			node: Node.self,
 			pid: self(),
 			name: opts[:name],
-			branch_pid: opts[:branch_pid],
 		}
 		{:ok, branch}
 	end

@@ -13,23 +13,26 @@ defmodule Cingi.Headquarters do
 
 	defstruct [
 		node: nil,
-		pid: nil,
-		name: nil,
 		branch_pids: [],
 	]
 
-	def start_link(opts \\ []) do
-		GenServer.start_link(__MODULE__, opts, opts)
+	def start_link(_ \\ []) do
+		GenServer.start_link(__MODULE__, [], name: {:global, :headquarters})
+	end
+
+	def get_or_create() do
+		if not GenServer.whereis {:global, :headquarters} do start_link() end
+		GenServer.call {:global, :headquarters}, :get
 	end
 
 	# Server Callbacks
 
-	def init(opts) do
-		headquarters = %Headquarters{
-			node: Node.self,
-			pid: self(),
-			name: opts[:name],
-		}
+	def init(_) do
+		headquarters = %Headquarters{node: Node.self}
 		{:ok, headquarters}
+	end
+
+	def handle_call(:get, _from, hq) do
+		{:reply, hq, hq}
 	end
 end
