@@ -86,6 +86,7 @@ defmodule CingiMissionPlansTest do
 			"first",
 			"second",
 			a, b, c, d,
+			"runs because parallel group exited with 0",
 			"end",
 		]  = output
 

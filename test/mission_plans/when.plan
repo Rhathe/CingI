@@ -41,4 +41,15 @@ missions:
                 - first
             missions: echo "should not run because of outputs"
 
+      - missions:
+          success_of_whens:
+            when:
+              exit_codes:
+                - 0
+            missions: echo "runs because parallel group exited with 0"
+
+          failure_of_whens:
+            when:
+              success: false
+            missions: echo "should not run because parallel group was success"
   - echo end
