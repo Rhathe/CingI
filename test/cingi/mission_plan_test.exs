@@ -1,11 +1,11 @@
 defmodule CingiMissionPlansTest do
 	use ExUnit.Case
-	alias Cingi.Headquarters
+	alias Cingi.Branch
 
 	test "runs inputs file" do
 		res = Helper.create_mission_report([file: "test/mission_plans/inputs.plan"])
 		pid = res[:pid]
-		Headquarters.resume(pid)
+		Branch.resume(pid)
 		mission = Helper.check_exit_code(res[:mission_pid])
 		output = mission.output
 			|> Enum.map(&(&1[:data]))
@@ -75,7 +75,7 @@ defmodule CingiMissionPlansTest do
 	test "runs when file" do
 		res = Helper.create_mission_report([file: "test/mission_plans/when.plan"])
 		pid = res[:pid]
-		Headquarters.resume(pid)
+		Branch.resume(pid)
 		mission = Helper.wait_for_finished(res[:mission_pid])
 		output = mission.output
 			|> Enum.map(&(&1[:data]))

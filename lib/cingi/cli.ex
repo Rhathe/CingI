@@ -9,7 +9,7 @@ defmodule Cingi.CLI do
 
 	def process(options) do
 		yaml_opts = [file: options[:file], cli_pid: self()]
-		Cingi.Headquarters.create_report :main_hq, yaml_opts
+		Cingi.Branch.create_report :local_branch, yaml_opts
 		receive do
 			{:report, _} -> :ok
 		end

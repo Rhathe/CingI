@@ -11,7 +11,7 @@ defmodule Cingi do
 		# List all child processes to be supervised
 		children = [
 			# Starts a worker by calling: Cingi.Worker.start_link(arg)
-			{Cingi.Headquarters, name: name},
+			{Cingi.Branch, name: name},
 		]
 
 		# See https://hexdocs.pm/elixir/Supervisor.html
@@ -21,7 +21,7 @@ defmodule Cingi do
 		ret = Supervisor.start_link(children, opts)
 
 		pid = GenServer.whereis name
-		Process.register pid, :main_hq
+		Process.register pid, :local_branch
 		ret
 	end
 end

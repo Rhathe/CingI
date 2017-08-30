@@ -1,19 +1,19 @@
 defmodule Cingi.Outpost do
 	@moduledoc """
-	Outposts are processes set up by commanders to connect to headquarters
+	Outposts are processes set up by commanders to connect to its branch
 	and receive missions. Outposts have to set up the environment,
 	like a workspace folder, or can be set up inside docker containers
 	"""
 
 	alias Cingi.Outpost
 	alias Cingi.FieldAgent
-	alias Cingi.Headquarters
+	alias Cingi.Branch
 	use GenServer
 
 	defstruct [
 		name: nil,
 		node: nil,
-		headquarters_pid: nil,
+		branch_pid: nil,
 		setup_steps: nil,
 		bash_process: nil,
 		alternates: nil,
@@ -54,8 +54,8 @@ defmodule Cingi.Outpost do
 		GenServer.cast(pid, {:run_mission, mission})
 	end
 
-	def set_hq(pid, hq_pid) do
-		GenServer.cast(pid, {:set_hq, hq_pid})
+	def set_branch(pid, branch_pid) do
+		GenServer.cast(pid, {:set_branch, branch_pid})
 	end
 
 	def mission_has_run(pid, mission_pid) do
@@ -134,17 +134,17 @@ defmodule Cingi.Outpost do
 		{:noreply, %Outpost{outpost | missions: outpost.missions ++ [mission]}}
 	end
 
-	def handle_cast({:set_hq, hq_pid}, outpost) do
-		{:noreply, %Outpost{outpost | headquarters_pid: hq_pid}}
+	def handle_cast({:set_branch, branch_pid}, outpost) do
+		{:noreply, %Outpost{outpost | branch_pid: branch_pid}}
 	end
 
 	def handle_cast({:mission_has_run, mission_pid}, outpost) do
-		Headquarters.mission_has_run(outpost.headquarters_pid, mission_pid)
+		Branch.mission_has_run(outpost.branch_pid, mission_pid)
 		{:noreply, outpost}
 	end
 
 	def handle_cast({:mission_has_finished, mission_pid, result}, outpost) do
-		Headquarters.mission_has_finished(outpost.headquarters_pid, mission_pid, result)
+		Branch.mission_has_finished(outpost.branch_pid, mission_pid, result)
 		{:noreply, outpost}
 	end
 end

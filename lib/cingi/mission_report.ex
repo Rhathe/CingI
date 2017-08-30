@@ -1,13 +1,13 @@
 defmodule Cingi.MissionReport do
 	alias Cingi.MissionReport
 	alias Cingi.Mission
-	alias Cingi.Headquarters
+	alias Cingi.Branch
 	use GenServer
 
 	defstruct [
 		plan: %{},
 		cli_pid: nil,
-		headquarters: nil,
+		branch_pid: nil,
 		missions: []
 	]
 
@@ -57,7 +57,7 @@ defmodule Cingi.MissionReport do
 
 	def handle_cast({:init_mission, opts}, report) do
 		opts = opts ++ [report_pid: self()]
-		Headquarters.init_mission(report.headquarters, opts)
+		Branch.init_mission(report.branch_pid, opts)
 		{:noreply, report}
 	end
 

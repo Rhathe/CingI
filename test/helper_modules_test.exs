@@ -1,7 +1,7 @@
 defmodule Helper do
 	alias Cingi.Mission
 	alias Cingi.MissionReport
-	alias Cingi.Headquarters
+	alias Cingi.Branch
 
 	def check_exit_code(pid) do
 		timing(fn () ->
@@ -20,15 +20,15 @@ defmodule Helper do
 
 	def wait_for_running_missions(pid, n) do
 		timing(fn () ->
-			hq = Headquarters.get(pid)
-			[n <= length(hq.running_missions), hq]
+			branch = Branch.get(pid)
+			[n <= length(branch.running_missions), branch]
 		end)
 	end
 
 	def wait_for_finished_missions(pid, n) do
 		timing(fn () ->
-			hq = Headquarters.get(pid)
-			[n <= length(hq.finished_missions), hq]
+			branch = Branch.get(pid)
+			[n <= length(branch.finished_missions), branch]
 		end)
 	end
 
@@ -55,14 +55,14 @@ defmodule Helper do
 	end
 
 	def create_mission_report(opts) do
-		{:ok, pid} = Headquarters.start_link()
-		Headquarters.pause(pid)
-		report_pid = Headquarters.create_report(pid, opts)
-		hq = Headquarters.get(pid)
-		mission_pid = Enum.at(hq.queued_missions, 0)
+		{:ok, pid} = Branch.start_link()
+		Branch.pause(pid)
+		report_pid = Branch.create_report(pid, opts)
+		branch = Branch.get(pid)
+		mission_pid = Enum.at(branch.queued_missions, 0)
 
 		[
-			hq: hq,
+			branch: branch,
 			report: MissionReport.get(report_pid),
 			mission: Mission.get(mission_pid),
 			pid: pid,
