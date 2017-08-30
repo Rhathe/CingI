@@ -212,13 +212,22 @@ defmodule Cingi.Mission do
 		exit_code = cond do
 			length(exit_codes) == 0 -> result.status
 			more_submissions -> nil
-			true -> exit_codes
-				|> (fn(x) ->
-					case x do
-						[] -> nil
-						x -> Enum.max(x)
-					end
-				end).()
+
+			# Get last exit code if missions are sequential
+			is_list(mission.submissions) ->
+				[head | _] = Enum.reverse(exit_codes)
+				head
+
+			# Get largest exit code if parallel
+			true ->
+				exit_codes
+					|> Enum.filter(&(&1))
+					|> (fn(x) ->
+						case x do
+							[] -> nil
+							x -> Enum.max(x)
+						end
+					end).()
 		end
 
 		# If submissions have not finished then more should be queued up

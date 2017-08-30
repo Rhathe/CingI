@@ -11,6 +11,13 @@ defmodule Helper do
 		end)
 	end
 
+	def wait_for_finished(pid) do
+		timing(fn () ->
+			mission = Mission.get pid
+			[mission.finished, mission]
+		end)
+	end
+
 	def wait_for_running_missions(pid, n) do
 		timing(fn () ->
 			hq = Headquarters.get(pid)

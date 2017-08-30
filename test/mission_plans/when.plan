@@ -1,4 +1,3 @@
-fail_fast: false
 missions:
   - fail_fast: false
     missions:
@@ -12,7 +11,7 @@ missions:
             when:
               exit_codes:
                 - 1
-            missions: echo "runs because exit code 1"
+            missions: echo "runs because of exit code 1"
 
           fail_with_exit_code:
             when:
@@ -28,7 +27,7 @@ missions:
           fail_without_success:
             when:
               success: false
-            missions: echo "run because of failure"
+            missions: echo "runs because of failure"
 
           success_with_output:
             when:
@@ -41,3 +40,5 @@ missions:
               outputs:
                 - first
             missions: echo "should not run because of outputs"
+
+  - echo end

@@ -71,4 +71,29 @@ defmodule CingiMissionPlansTest do
 
 		assert [] = next
 	end
+
+	test "runs when file" do
+		res = Helper.create_mission_report([file: "test/mission_plans/when.plan"])
+		pid = res[:pid]
+		Headquarters.resume(pid)
+		mission = Helper.wait_for_finished(res[:mission_pid])
+		output = mission.output
+			|> Enum.map(&(&1[:data]))
+			|> Enum.join("\n")
+			|> String.split("\n", trim: true)
+
+		assert [
+			"first",
+			"second",
+			a, b, c, d,
+			"end",
+		]  = output
+
+		assert [
+			"runs because of exit code 1",
+			"runs because of failure",
+			"runs because of outputs",
+			"runs regardless",
+		] = Enum.sort([a, b, c, d])
+	end
 end

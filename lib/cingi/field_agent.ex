@@ -74,7 +74,10 @@ defmodule Cingi.FieldAgent do
 					sub = Mission.get(h.pid)
 					FieldAgent.stop(sub.field_agent_pid)
 				end)
-			_ -> Proc.send_input field_agent.proc, "kill\n"
+			_ -> case field_agent.proc do
+					nil -> :ok
+					_ -> Proc.send_input field_agent.proc, "kill\n"
+				end
 		end
 		{:noreply, field_agent}
 	end
