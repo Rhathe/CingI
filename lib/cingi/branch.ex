@@ -11,7 +11,10 @@ defmodule Cingi.Branch do
 		node: nil,
 		pid: nil,
 		name: nil,
+
 		hq_pid: nil,
+		cli_pid: nil, # Get cli pid if run through cli
+
 		running: true,
 		mission_reports: [],
 		started_missions: [],
@@ -47,6 +50,14 @@ defmodule Cingi.Branch do
 		GenServer.cast(pid, {:mission_has_finished, mission_pid, result})
 	end
 
+	def report_has_finished(pid, report_pid, result) do
+		GenServer.cast(pid, {:report_has_finished, report_pid, result})
+	end
+
+	def report_data(pid, report_pid, data) do
+		GenServer.cast(pid, {:report_data, report_pid, data})
+	end
+
 	def pause(pid) do
 		GenServer.call(pid, :pause)
 	end
@@ -61,6 +72,10 @@ defmodule Cingi.Branch do
 
 	def link_headquarters(pid, hq_pid) do
 		GenServer.call(pid, {:link_headquarters, hq_pid})
+	end
+
+	def link_cli(pid, cli_pid) do
+		GenServer.call(pid, {:link_cli, cli_pid})
 	end
 
 	# Server Callbacks
@@ -100,6 +115,11 @@ defmodule Cingi.Branch do
 
 	def handle_call({:link_headquarters, hq_pid}, _from, branch) do
 		branch = %Branch{branch | hq_pid: hq_pid}
+		{:reply, branch, branch}
+	end
+
+	def handle_call({:link_cli, cli_pid}, _from, branch) do
+		branch = %Branch{branch | cli_pid: cli_pid}
 		{:reply, branch, branch}
 	end
 
@@ -175,5 +195,25 @@ defmodule Cingi.Branch do
 			running_missions: running_missions,
 			finished_missions: branch.finished_missions ++ [mission_pid],
 		}}
+	end
+
+	def handle_cast({:report_has_finished, _report_pid, _result}, branch) do
+		if (branch.cli_pid) do
+			send branch.cli_pid, {:report, self()}
+		end
+		{:noreply, branch}
+	end
+
+	def handle_cast({:report_data, _report_pid, data}, branch) do
+		if (branch.cli_pid) do
+			case data[:pid] do
+				[] -> [data[:data]]
+				[_|_] ->
+					keys = data[:pid] |> Enum.map(&(Mission.get(&1).key)) |> Enum.join("|")
+					split = String.split(data[:data], "\n")
+					split |> Enum.map(&("[#{keys}]    #{&1}"))
+			end |> Enum.map(&(IO.puts &1))
+		end
+		{:noreply, branch}
 	end
 end

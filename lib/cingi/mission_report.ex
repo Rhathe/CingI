@@ -1,12 +1,10 @@
 defmodule Cingi.MissionReport do
 	alias Cingi.MissionReport
-	alias Cingi.Mission
 	alias Cingi.Branch
 	use GenServer
 
 	defstruct [
 		plan: %{},
-		cli_pid: nil,
 		branch_pid: nil,
 		missions: []
 	]
@@ -66,24 +64,13 @@ defmodule Cingi.MissionReport do
 		{:noreply, %MissionReport{report | missions: missions}}
 	end
 
-	def handle_cast({:mission_finished, _}, report) do
-		if report.cli_pid do
-			send report.cli_pid, {:report, self()}
-		end
+	def handle_cast({:mission_finished, result}, report) do
+		Branch.report_has_finished(report.branch_pid, self(), result)
 		{:noreply, report}
 	end
 
 	def handle_cast({:data, data}, report) do
-		if (report.cli_pid) do
-			case data[:pid] do
-				[] -> [data[:data]]
-				[_|_] ->
-					keys = data[:pid] |> Enum.map(&(Mission.get(&1).key)) |> Enum.join("|")
-					split = String.split(data[:data], "\n")
-					split |> Enum.map(&("[#{keys}]    #{&1}"))
-			end |> Enum.map(&(IO.puts &1))
-		end
-
+		Branch.report_data(report.branch_pid, self(), data)
 		{:noreply, report}
 	end
 

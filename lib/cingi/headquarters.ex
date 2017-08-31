@@ -38,7 +38,9 @@ defmodule Cingi.Headquarters do
 	end
 
 	def link_branch(pid, branch_pid) do
-		GenServer.call pid, {:link_branch, branch_pid}
+		# May be passed in name, so get real pid while still in same node
+		true_branch_pid = Branch.get(branch_pid).pid
+		GenServer.call pid, {:link_branch, true_branch_pid}
 	end
 
 	def init_mission(pid, opts) do
