@@ -23,12 +23,6 @@ defmodule CingiBranchTest do
 		assert res[:report_pid] in res[:branch].mission_reports
 	end
 
-	test "creating mission report queued mission" do
-		res = Helper.create_mission_report([string: "missions: echo 1"])
-		assert length(Headquarters.get(res[:hq_pid]).queued_missions) == 1
-		assert res[:mission].cmd == "echo 1"
-	end
-
 	test "runs queued missions" do
 		res = Helper.create_mission_report([string: "missions: echo 1"])
 		bpid = res[:branch_pid]
@@ -59,7 +53,6 @@ defmodule CingiBranchTest do
 		assert ["match1", "ignored2", "match3", "match1", "match3", "end"] = outputs
 	end
 
-	@tag tmp: true
 	test "runs sequential submissions" do
 		yaml = "missions:\n  - ncat -l -i 1 8000\n  - ncat -l -i 1 8001"
 		res = Helper.create_mission_report([string: yaml])
