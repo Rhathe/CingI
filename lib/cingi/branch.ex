@@ -1,6 +1,7 @@
 defmodule Cingi.Branch do
 	alias Cingi.Branch
 	alias Cingi.FieldAgent
+	alias Cingi.Headquarters
 	alias Cingi.Outpost
 	alias Cingi.Mission
 	alias Cingi.MissionReport
@@ -10,9 +11,9 @@ defmodule Cingi.Branch do
 		node: nil,
 		pid: nil,
 		name: nil,
+		hq_pid: nil,
 		running: true,
 		mission_reports: [],
-		queued_missions: [],
 		started_missions: [],
 		running_missions: [],
 		finished_missions: [],
@@ -30,8 +31,8 @@ defmodule Cingi.Branch do
 		GenServer.cast(pid, {:init_mission, opts})
 	end
 
-	def run_missions(pid) do
-		GenServer.cast(pid, :run_missions)
+	def run_mission(pid, mission) do
+		GenServer.cast(pid, {:run_mission, mission})
 	end
 
 	def send_mission_to_outpost(pid, mission_pid) do
@@ -58,6 +59,10 @@ defmodule Cingi.Branch do
 		GenServer.call(pid, :get)
 	end
 
+	def link_headquarters(pid, hq_pid) do
+		GenServer.call(pid, {:link_headquarters, hq_pid})
+	end
+
 	# Server Callbacks
 
 	def init(opts) do
@@ -65,6 +70,7 @@ defmodule Cingi.Branch do
 			node: Node.self,
 			pid: self(),
 			name: opts[:name],
+			hq_pid: nil,
 		}
 		{:ok, branch}
 	end
@@ -84,7 +90,7 @@ defmodule Cingi.Branch do
 	def handle_call(:resume, _from, branch) do
 		branch = %Branch{branch | running: true}
 		for m <- branch.running_missions do Mission.resume(m) end
-		Branch.run_missions(self())
+		Headquarters.run_missions(branch.hq_pid)
 		{:reply, branch, branch}
 	end
 
@@ -92,28 +98,19 @@ defmodule Cingi.Branch do
 		{:reply, branch, branch}
 	end
 
-	def handle_cast({:init_mission, opts}, branch) do
-		{:ok, mission} = Mission.start_link(opts)
-		missions = branch.queued_missions ++ [mission]
-		Branch.run_missions(self())
-		{:noreply, %Branch{branch | queued_missions: missions}}
+	def handle_call({:link_headquarters, hq_pid}, _from, branch) do
+		branch = %Branch{branch | hq_pid: hq_pid}
+		{:reply, branch, branch}
 	end
 
-	def handle_cast(:run_missions, branch) do
-		branch = try do
-			if not branch.running do raise "Not running" end
+	def handle_cast({:init_mission, opts}, branch) do
+		Headquarters.init_mission(branch.hq_pid, opts)
+		{:noreply, branch}
+	end
 
-			[mission | queued_missions] = branch.queued_missions
-
-			Branch.send_mission_to_outpost(self(), mission)
-			%Branch{branch |
-				queued_missions: queued_missions,
-				started_missions: branch.started_missions ++ [mission]
-			}
-		rescue
-			MatchError -> branch
-			RuntimeError -> branch
-		end
+	def handle_cast({:run_mission, mission}, branch) do
+		Branch.send_mission_to_outpost(self(), mission)
+		branch = %Branch{branch | started_missions: branch.started_missions ++ [mission]}
 		{:noreply, branch}
 	end
 
@@ -147,7 +144,7 @@ defmodule Cingi.Branch do
 			mission_pid in branch.started_missions -> List.delete(branch.started_missions, mission_pid)
 			true -> raise "Mission ran but not started"
 		end
-		Branch.run_missions(self())
+		Headquarters.run_missions(branch.hq_pid)
 		{:noreply, %Branch{branch |
 			started_missions: started_missions,
 			running_missions: branch.running_missions ++ [mission_pid],
