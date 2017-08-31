@@ -13,6 +13,8 @@ defmodule Cingi.Outpost do
 	defstruct [
 		name: nil,
 		node: nil,
+		pid: nil,
+
 		branch_pid: nil,
 		setup_steps: nil,
 		bash_process: nil,
@@ -37,17 +39,12 @@ defmodule Cingi.Outpost do
 		GenServer.call(pid, :get)
 	end
 
-	def get_on_same_node(pid) do
-		GenServer.call(pid, {:outpost_on_node, Node.self})
+	def get_version_on_branch(pid, branch_pid) do
+		GenServer.call(pid, {:outpost_on_branch, branch_pid})
 	end
 
-	def get_or_create_on_same_node(pid) do
-		outpost = get_on_same_node(pid)
-		{:ok, new_pid} = case outpost do
-			nil -> start_link(original: pid)
-			new_pid -> {:ok, new_pid}
-		end
-		new_pid
+	def create_version_on_branch(pid, branch_pid) do
+		start_link(original: pid, branch_pid: branch_pid)
 	end
 
 	def run_mission(pid, mission) do
@@ -82,10 +79,20 @@ defmodule Cingi.Outpost do
 	def init(opts) do
 		outpost = case opts[:original] do
 			nil -> struct(Outpost, opts)
-			original -> Outpost.get original
+			opid -> Outpost.get opid
 		end
 
-		outpost = %Outpost{outpost | node: Node.self}
+		outpost = %Outpost{outpost |
+			node: Node.self,
+			pid: self(),
+			branch_pid: nil,
+		}
+
+		case opts[:branch_pid] do
+			nil -> :ok
+			bpid -> Outpost.set_branch(self(), bpid)
+		end
+
 		Outpost.update_alternates(self())
 		{:ok, outpost}
 	end
@@ -94,7 +101,7 @@ defmodule Cingi.Outpost do
 		{:reply, outpost, outpost}
 	end
 
-	def handle_call({:outpost_on_node, node_pid}, _from, outpost) do
+	def handle_call({:outpost_on_branch, branch_pid}, _from, outpost) do
 		self_pid = self()
 		alternate = Agent.get(outpost.alternates, &(&1))
 			|> Enum.find(fn(pid) ->
@@ -104,8 +111,8 @@ defmodule Cingi.Outpost do
 					_ -> Outpost.get(pid)
 				end
 
-				case tmp_outpost.node do
-					^node_pid -> tmp_outpost
+				case tmp_outpost.branch_pid do
+					^branch_pid -> tmp_outpost
 					_ -> nil
 				end
 			end)
@@ -135,6 +142,8 @@ defmodule Cingi.Outpost do
 	end
 
 	def handle_cast({:set_branch, branch_pid}, outpost) do
+		# Need to get pid from branch itself, since a name can be passed in
+		branch_pid = Branch.get(branch_pid).pid
 		{:noreply, %Outpost{outpost | branch_pid: branch_pid}}
 	end
 

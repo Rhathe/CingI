@@ -126,15 +126,17 @@ defmodule Cingi.Branch do
 		{:ok, outpost} = case Mission.get_outpost_plan(mission) do
 			nil ->
 				case Mission.get(mission).supermission_pid do
-					nil -> Outpost.start_link()
+					nil -> Outpost.start_link(branch_pid: self())
 					supermission ->
 						outpost = Mission.get_outpost(supermission)
-						{:ok, Outpost.get_or_create_on_same_node(outpost)}
+						case Outpost.get_version_on_branch(outpost, self()) do
+							nil -> Outpost.create_version_on_branch(outpost, self())
+							x -> {:ok, x}
+						end
 				end
-			plan -> Outpost.start_link(plan)
+			plan -> Outpost.start_link(Map.put(plan, :branch_pid, self()))
 		end
 
-		Outpost.set_branch(outpost, self())
 		Outpost.run_mission(outpost, mission)
 		{:noreply, branch}
 	end

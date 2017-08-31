@@ -103,11 +103,16 @@ defmodule Cingi.Headquarters do
 		{:noreply, hq}
 	end
 
+	# Get branch with lowerst number of current missions to pass a mission along to
 	def get_branch(hq) do
-		Enum.at(get_all_branches(hq), 0)
+		get_all_branches(hq)
+			|> Enum.map(&Branch.get/1)
+			|> Enum.min_by(&(length(&1.running_missions) + length(&1.started_missions)))
+			|> (fn(b) -> b.pid end).()
 	end
 
+	# Get all branches that are currently still alive
 	def get_all_branches(hq) do
-		hq.branch_pids
+		hq.branch_pids |> Enum.filter(&(GenServer.whereis(&1)))
 	end
 end
