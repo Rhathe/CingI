@@ -61,6 +61,7 @@ defmodule Cingi.CLI do
 				minbranches: :integer,
 				file: :string,
 				connectto: :string,
+				branchoutput: :boolean,
 			]
 		)
 		options

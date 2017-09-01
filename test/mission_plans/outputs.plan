@@ -1,0 +1,35 @@
+missions:
+  - output:
+      - $OUT['third']
+      - $OUT['second']
+    missions:
+      first:
+        output: $OUT[2]
+        missions:
+          - echo first1
+          - echo first2
+          - echo first3
+      second:
+        missions:
+          - echo second1
+          - echo second2
+      third:
+        output:
+          - $OUT[4]
+          - $OUT[2]
+        missions:
+          - echo third1
+          - echo third2
+          - echo third3
+          - echo third4
+  - missions:
+      normal: "while read line; do echo \"normal: $line\"; done"
+      selective_input:
+        input:
+          - $IN['third']
+          - $IN['second']
+        missions: "while read line; do echo \"third, second: $line\"; done"
+      hidden_input:
+        input:
+          - $IN['first']
+        missions: "while read line; do echo \"first: $line\"; done"

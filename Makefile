@@ -17,7 +17,7 @@ build-cli:
 
 test-cli:
 	make build-cli
-	./cingi --file test/mission_plans/when.plan
+	./cingi --file test/mission_plans/outputs.plan
 
 test-multi-cli:
 	make test-hq-cli &
