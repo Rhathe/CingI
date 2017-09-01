@@ -47,6 +47,10 @@ defmodule Cingi.Outpost do
 		start_link(original: pid, branch_pid: branch_pid)
 	end
 
+	def send_data(pid, data) do
+		GenServer.cast(pid, {:send_data, data})
+	end
+
 	def run_mission(pid, mission) do
 		GenServer.cast(pid, {:run_mission, mission})
 	end
@@ -122,6 +126,10 @@ defmodule Cingi.Outpost do
 	def handle_call(:get_alternates, _from, outpost) do
 		alternates = Agent.get(outpost.alternates, &(&1))
 		{:reply, alternates, outpost}
+	end
+
+	def handle_cast({:send_data, data}, outpost) do
+		{:noreply, outpost}
 	end
 
 	def handle_cast(:update_alternates, outpost) do
