@@ -28,8 +28,7 @@ defmodule Cingi.CLI do
 	def connect_or_headquarters(host, nil, options) do
 		set_up_network(true, options)
 		host = String.to_atom host
-		Node.connect(host)
-		wait_for_hq()
+		wait_for_hq(host)
 		Cingi.Headquarters.link_branch({:global, :hq}, :local_branch)
 		IO.puts "Connected local branch to global headquarters"
 		Process.send({:local_cli, host}, {:branch_connect, self()}, [])
@@ -91,13 +90,14 @@ defmodule Cingi.CLI do
 		end
 	end
 
-	def wait_for_hq(countdown \\ 20) do
+	def wait_for_hq(host, countdown \\ 100) do
+		Node.connect(host)
 		case GenServer.whereis({:global, :hq}) do
 			nil ->
 				Process.sleep 100
 				case countdown do
 					n when n <= 0 -> raise "Took too long connecting to headquarters"
-					n -> wait_for_hq(n - 1)
+					n -> wait_for_hq(host, n - 1)
 				end
 			_ -> Cingi.Headquarters.get({:global, :hq})
 		end

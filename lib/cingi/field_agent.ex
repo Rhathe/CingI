@@ -137,9 +137,9 @@ defmodule Cingi.FieldAgent do
 
 	defp add_to_output(field_agent, opts) do
 		time = :os.system_time(:millisecond)
-		out = opts ++ [timestamp: time, pid: []]
-		Mission.send(field_agent.mission_pid, out)
-		Outpost.send_data(field_agent.outpost_pid, out)
+		data = opts ++ [timestamp: time, pid: []]
+		Mission.send(field_agent.mission_pid, data)
+		Outpost.field_agent_data(field_agent.outpost_pid, self(), data)
 		{:noreply, field_agent}
 	end
 

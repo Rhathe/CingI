@@ -54,6 +54,10 @@ defmodule Cingi.Branch do
 		GenServer.cast(pid, {:report_has_finished, report_pid, result})
 	end
 
+	def outpost_data(pid, outpost_pid, data) do
+		GenServer.cast(pid, {:outpost_data, outpost_pid, data})
+	end
+
 	def report_data(pid, report_pid, data) do
 		GenServer.cast(pid, {:report_data, report_pid, data})
 	end
@@ -200,6 +204,13 @@ defmodule Cingi.Branch do
 	def handle_cast({:report_has_finished, _report_pid, _result}, branch) do
 		if (branch.cli_pid) do
 			send branch.cli_pid, {:report, self()}
+		end
+		{:noreply, branch}
+	end
+
+	def handle_cast({:outpost_data, _outpost_pid, data}, branch) do
+		if (branch.cli_pid) do
+			IO.puts data[:data]
 		end
 		{:noreply, branch}
 	end

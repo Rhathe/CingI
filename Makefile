@@ -20,14 +20,17 @@ test-cli:
 	./cingi --file test/mission_plans/when.plan
 
 test-multi-cli:
-	make build-cli
-	./cingi --file test/mission_plans/when.plan
+	make test-hq-cli &
+	make test-branch-cli
+	make kill-all-epmd
 
 test-hq-cli:
+	epmd -daemon
 	make build-cli
 	./cingi --file test/mission_plans/when.plan --minbranches 2 --name one@localhost --cookie test
 
 test-branch-cli:
+	epmd -daemon
 	make build-cli
 	./cingi --file test/mission_plans/when.plan --connectto one@localhost --name two@localhost --cookie test
 
