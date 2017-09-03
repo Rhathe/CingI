@@ -20,6 +20,7 @@ defmodule Cingi.Mission do
 		submissions_num: nil,
 
 		input_file: "$IN", # Get input by default
+		output_filter: nil, # Don't filter anything by default
 		output: [],
 
 		listen_for_api: false, # Enable to listen in the output for any cingi api calls
@@ -158,6 +159,7 @@ defmodule Cingi.Mission do
 				false -> "$IN"
 				true -> map["input"]
 			end,
+			output_filter: map["output"] || nil,
 		]
 
 		submissions = map["missions"]
@@ -385,5 +387,4 @@ defmodule Cingi.Mission do
 				end
 		end
 	end
-
 end
