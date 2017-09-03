@@ -27,5 +27,45 @@ defmodule CingiMissionReportTest do
 		test "parses $IN[\"str\"]" do
 			assert [type: "IN", key: "str"] = Report.parse_variable "$IN[\"str\"]"
 		end
+
+		test "fails to parse empty string" do
+			assert [error: "Unrecognized pattern "] = Report.parse_variable ""
+		end
+
+		test "fails to parse arbitrary string" do
+			assert [error: "Unrecognized pattern blah"] = Report.parse_variable "blah"
+		end
+
+		test "fails to parse invalids in type" do
+			assert [error: "Invalid characters"] = Report.parse_variable "$af09"
+			assert [error: "Invalid characters"] = Report.parse_variable "$af09[s]"
+		end
+
+		test "fails to parse if invalid after $" do
+			assert [error: "Unrecognized pattern $09af"] = Report.parse_variable "$09af"
+		end
+
+		test "fails to parse with bad brackets" do
+			assert [error: "Nonmatching brackets"] = Report.parse_variable "$IN["
+			assert [error: "Invalid characters"] = Report.parse_variable "$IN]"
+			assert [error: "Nonmatching brackets"] = Report.parse_variable "$IN[s"
+		end
+
+		test "fails to parse with no key" do
+			assert [error: "Empty/bad key"] = Report.parse_variable "$IN[]"
+			assert [error: "Empty/bad key"] = Report.parse_variable "$IN['']"
+			assert [error: "Empty/bad key"] = Report.parse_variable "$IN[\"\"]"
+			assert [error: "Empty/bad key"] = Report.parse_variable "$IN[\"]"
+			assert [error: "Empty/bad key"] = Report.parse_variable "$IN[']"
+		end
+
+		test "fails to parse with nonmatching strings" do
+			assert [error: "Nonmatching quotes"] = Report.parse_variable "$IN['blah\"]"
+			assert [error: "Nonmatching quotes"] = Report.parse_variable "$IN[\"blah']"
+			assert [error: "Nonmatching quotes"] = Report.parse_variable "$IN['blah]"
+			assert [error: "Nonmatching quotes"] = Report.parse_variable "$IN[blah']"
+			assert [error: "Nonmatching quotes"] = Report.parse_variable "$IN[\"blah]"
+			assert [error: "Nonmatching quotes"] = Report.parse_variable "$IN[blah\"]"
+		end
 	end
 end

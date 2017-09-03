@@ -79,7 +79,7 @@ defmodule Cingi.MissionReport do
 	end
 
 	def parse_variable(v) do
-		reg = ~r/\$(?<vartype>[a-zA-Z]+)(?<bracket1>\[?)(?<quote1>['"]?)(?<key>[a-zA-Z_0-9]*)(?<quote2>['"]?)(?<bracket2>\]?)/
+		reg = ~r/\$(?<vartype>[a-zA-Z]+)(?<invalids>[^\[]*)(?<bracket1>\[?)(?<quote1>['"]?)(?<key>[a-zA-Z_0-9]*)(?<quote2>['"]?)(?<bracket2>\]?)/
 		captured = Regex.named_captures(reg, v)
 		case captured do
 			nil -> [error: "Unrecognized pattern #{v}"]
@@ -87,6 +87,7 @@ defmodule Cingi.MissionReport do
 			%{
 				"vartype" => type,
 				"key" => "",
+				"invalids" => "",
 				"bracket1" => "",
 				"bracket2" => "",
 				"quote1" => "",
@@ -95,6 +96,7 @@ defmodule Cingi.MissionReport do
 			%{
 				"vartype" => type,
 				"key" => key,
+				"invalids" => "",
 				"bracket1" => "[",
 				"bracket2" => "]",
 			} ->
@@ -110,7 +112,8 @@ defmodule Cingi.MissionReport do
 						end
 					_ -> [error: "Nonmatching quotes"]
 				end
-			_ -> [error: "Nonmatching brackets"]
+			%{"invalids" => ""} -> [error: "Nonmatching brackets"]
+			_ -> [error: "Invalid characters"]
 		end
 	end
 end
