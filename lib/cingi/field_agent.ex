@@ -8,6 +8,7 @@ defmodule Cingi.FieldAgent do
 	alias Cingi.FieldAgent
 	alias Cingi.Outpost
 	alias Cingi.Mission
+	alias Cingi.MissionReport
 	alias Porcelain.Process, as: Proc
 	use GenServer
 
@@ -153,12 +154,11 @@ defmodule Cingi.FieldAgent do
 
 		input = input
 			|> Enum.map(fn (x) ->
-				case x do
-					"$IN" -> Mission.get_output(mission.prev_mission_pid)
-					x -> case Regex.named_captures(~r/\$IN\[['"](?<key>.+)['"]\]/, x) do
-						%{"key" => key} -> Mission.get_output(mission.prev_mission_pid, key)
-						nil -> ""
-					end
+				case MissionReport.parse_variable(x) do
+					[error: _] -> :error
+					[type: "IN"] -> Mission.get_output(mission.prev_mission_pid)
+					[type: "IN", key: key] -> Mission.get_output(mission.prev_mission_pid, key)
+					[type: "IN", index: index] -> Mission.get_output(mission.prev_mission_pid, index)
 				end
 			end)
 

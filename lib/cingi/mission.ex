@@ -81,10 +81,10 @@ defmodule Cingi.Mission do
 		GenServer.call(pid, {:set_as_running, field_agent_pid})
 	end
 
-	def get_output(pid, output_key \\ nil) do
+	def get_output(pid, selector \\ nil) do
 		case pid do
 			nil -> []
-			_ -> GenServer.call(pid, {:get_output, output_key})
+			_ -> GenServer.call(pid, {:get_output, selector})
 		end
 	end
 
@@ -326,15 +326,25 @@ defmodule Cingi.Mission do
 		{:reply, mission, mission}
 	end
 
-	def handle_call({:get_output, output_key}, _from, mission) do
-		output = case output_key do
+	def handle_call({:get_output, selector}, _from, mission) do
+		output = case selector do
+			# Empty slector means just get normal output
 			nil -> mission.output
-			_ ->
+
+			# String sleector means get submission output with same key
+			"" <> output_key ->
 				mission.submission_holds
 					|> Enum.map(&(&1.pid))
 					|> Enum.map(&Mission.get/1)
 					|> Enum.find(&(&1.key == output_key))
 					|> (fn(s) -> s.output end).()
+
+			# Default/integer selector means get submissions at index
+			index ->
+				mission.submission_holds
+					|> Enum.at(index)
+					|> (fn(s) -> s.output end).()
+
 		end |> Enum.map(&(&1[:data]))
 		{:reply, output, mission}
 	end
