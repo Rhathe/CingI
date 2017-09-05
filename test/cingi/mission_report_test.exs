@@ -28,6 +28,10 @@ defmodule CingiMissionReportTest do
 			assert [type: "IN", key: "str"] = Report.parse_variable "$IN[\"str\"]"
 		end
 
+		test "fails to parse nil" do
+			assert [error: "Unrecognized pattern "] = Report.parse_variable nil
+		end
+
 		test "fails to parse empty string" do
 			assert [error: "Unrecognized pattern "] = Report.parse_variable ""
 		end

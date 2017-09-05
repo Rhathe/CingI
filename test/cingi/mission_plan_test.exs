@@ -95,4 +95,68 @@ defmodule CingiMissionPlansTest do
 			"runs regardless",
 		] = Enum.sort([a, b, c, d])
 	end
+
+	describe "runs outputs file" do
+		setup do
+			res = Helper.create_mission_report([file: "test/mission_plans/outputs.plan"])
+			Headquarters.resume(res[:hq_pid])
+			mission = Helper.wait_for_finished(res[:mission_pid])
+			output = mission.output
+				|> Enum.map(&(&1[:data]))
+				|> Enum.join("\n")
+				|> String.split("\n", trim: true)
+			[output: output]
+		end
+
+		test "right amount of output", ctx do
+			assert 13 = length(ctx.output)
+		end
+
+		test "first does not go through", ctx do
+			assert "first1" not in ctx.output
+			assert "first2" not in ctx.output
+			assert "first3" not in ctx.output
+		end
+
+		test "second and third goes through", ctx do
+			assert [
+				"second1",
+				"second2",
+				"third2",
+				"third3"
+			] = ctx.output |> Enum.slice(0, 4) |> Enum.sort()
+		end
+
+		test "third filters indices", ctx do
+			assert "third1" not in ctx.output
+			assert "third4" not in ctx.output
+		end
+
+		test "hidden inputs can still be taken", ctx do
+			firsts = Enum.filter(ctx.output, &(case &1 do; "first: " <> _ -> true; _ -> false end))
+			assert "first: first3" in firsts
+			assert "first: first1" not in firsts
+			assert "first: first2" not in firsts
+		end
+
+		test "selective input has thirds first", ctx do
+			outputs = Enum.filter(ctx.output, &(case &1 do; "third, second: " <> _ -> true; _ -> false end))
+			assert [
+				"third, second: third2",
+				"third, second: third3",
+				"third, second: second1",
+				"third, second: second2",
+			] = outputs
+		end
+
+		test "normal input", ctx do
+			outputs = Enum.filter(ctx.output, &(case &1 do; "normal: " <> _ -> true; _ -> false end))
+			assert [
+				"normal: second1",
+				"normal: second2",
+				"normal: third2",
+				"normal: third3",
+			] = Enum.sort(outputs)
+		end
+	end
 end

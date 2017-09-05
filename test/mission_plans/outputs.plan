@@ -17,6 +17,7 @@ missions:
         output:
           - $OUT[4]
           - $OUT[2]
+          - $OUT[1]
         missions:
           - echo third1
           - echo third2

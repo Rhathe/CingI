@@ -79,6 +79,7 @@ defmodule Cingi.MissionReport do
 	end
 
 	def parse_variable(v) do
+		v = v || ""
 		reg = ~r/\$(?<vartype>[a-zA-Z]+)(?<invalids>[^\[]*)(?<bracket1>\[?)(?<quote1>['"]?)(?<key>[a-zA-Z_0-9]*)(?<quote2>['"]?)(?<bracket2>\]?)/
 		captured = Regex.named_captures(reg, v)
 		case captured do

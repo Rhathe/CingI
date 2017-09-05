@@ -20,7 +20,7 @@ defmodule Cingi.Mission do
 		submissions_num: nil,
 
 		input_file: "$IN", # Get input by default
-		output_filter: nil, # Don't filter anything by default
+		output_filter: [], # Don't filter anything by default
 		output: [],
 
 		listen_for_api: false, # Enable to listen in the output for any cingi api calls
@@ -108,6 +108,7 @@ defmodule Cingi.Mission do
 				_ -> mission.key
 			end,
 			skipped: determine_skipped_status(mission),
+			output_filter: get_output_filter(mission.output_filter),
 		}
 
 		case mission do
@@ -159,7 +160,7 @@ defmodule Cingi.Mission do
 				false -> "$IN"
 				true -> map["input"]
 			end,
-			output_filter: map["output"] || nil,
+			output_filter: map["output"],
 		]
 
 		submissions = map["missions"]
@@ -255,15 +256,40 @@ defmodule Cingi.Mission do
 	end
 
 	def handle_cast({:data_and_metadata, data}, mission) do
-		if mission.supermission_pid do
-			pids = [self()] ++ data[:pid]
-			new_data = Keyword.delete(data, :pid)
-			Mission.send(mission.supermission_pid, new_data ++ [pid: pids])
-		else
-			MissionReport.send_data(mission.report_pid, data)
+		submission_pid = Enum.at(data[:pid], 0)
+		submission_index = Enum.find_index(mission.submission_holds, &(&1.pid == submission_pid))
+
+		splits = Enum.split_with(mission.output_filter, &(&1[:key]))
+
+		new_data = case splits do
+			# All empty lists, no filter
+			{[], []} -> [data]
+			{keys, indices} ->
+				indices = Enum.map(indices, &(&1[:index]))
+				keys = Enum.map(keys, &(&1[:key]))
+
+				cond do
+					is_nil(submission_pid) -> []
+					submission_index in indices -> [data]
+					length(keys) == 0 -> []
+					Mission.get(submission_pid).key in keys -> [data]
+					true -> []
+				end
 		end
 
-		{:noreply, %Mission{mission | output: mission.output ++ [data]}}
+		case new_data do
+			[] -> :ok
+			_ ->
+				if mission.supermission_pid do
+					pids = [self()] ++ data[:pid]
+					data_without_pid = Keyword.delete(data, :pid)
+					Mission.send(mission.supermission_pid, data_without_pid ++ [pid: pids])
+				else
+					MissionReport.send_data(mission.report_pid, data)
+				end
+		end
+
+		{:noreply, %Mission{mission | output: mission.output ++ new_data}}
 	end
 
 	def handle_cast({:init_submission, pid}, mission) do
@@ -396,5 +422,21 @@ defmodule Cingi.Mission do
 					true -> true
 				end
 		end
+	end
+
+	def get_output_filter(output_plan) do
+		case output_plan do
+			nil -> []
+			[] -> []
+			[_|_] -> output_plan
+			x -> [x]
+		end
+			|> Enum.map(fn(x) ->
+				case MissionReport.parse_variable(x) do
+					[error: _] -> nil
+					y -> y
+				end
+			end)
+			|> Enum.filter(&(&1))
 	end
 end
