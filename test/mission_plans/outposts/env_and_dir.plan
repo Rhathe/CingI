@@ -1,0 +1,6 @@
+outpost:
+  env:
+    TEST_OUTPOSTS: test_outposts_value
+missions:
+  - "echo \"TEST_OUTPOSTS 1: $TEST_OUTPOSTS\""
+  - "echo \"TEST_OUTPOSTS 2: $TEST_OUTPOSTS\""

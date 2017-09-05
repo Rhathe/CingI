@@ -193,7 +193,7 @@ defmodule CingiBranchTest do
 	end
 
 	test "generates correct outposts" do
-		res = Helper.create_mission_report([file: "test/mission_plans/outposts.plan"])
+		res = Helper.create_mission_report([file: "test/mission_plans/outposts/simple.plan"])
 		bpid = res[:branch_pid]
 		mpid = res[:mission_pid]
 		Headquarters.resume(res[:hq_pid])

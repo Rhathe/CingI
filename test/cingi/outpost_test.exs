@@ -10,7 +10,6 @@ defmodule CingiOutpostTest do
 			name: nil,
 			is_setup: false,
 			setup_steps: nil,
-			bash_process: nil,
 			branch_pid: nil,
 			node: :"nonode@nohost",
 		} = Outpost.get(pid)

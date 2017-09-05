@@ -17,11 +17,12 @@ defmodule Cingi.Outpost do
 
 		branch_pid: nil,
 		setup_steps: nil,
-		bash_process: nil,
 		alternates: nil,
+
 		is_setup: false,
 		dir: nil,
-		envs: nil,
+		env: [],
+
 		missions: [],
 	]
 
@@ -86,10 +87,13 @@ defmodule Cingi.Outpost do
 			opid -> Outpost.get opid
 		end
 
+		plan = opts[:plan] || %{}
+
 		outpost = %Outpost{outpost |
 			node: Node.self,
 			pid: self(),
 			branch_pid: nil,
+			env: outpost.env ++ Map.get(plan, "env", [])
 		}
 
 		case opts[:branch_pid] do

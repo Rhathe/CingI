@@ -147,18 +147,22 @@ defmodule Cingi.Branch do
 		# if so, use that to start initialize a new outpost,
 		# otherwise use an outpost from this mission's supermission,
 		# constructing on this node if necessary
+		parent = case Mission.get(mission).supermission_pid do
+			nil -> nil
+			supermission -> Mission.get_outpost(supermission)
+		end
+
 		{:ok, outpost} = case Mission.get_outpost_plan(mission) do
 			nil ->
-				case Mission.get(mission).supermission_pid do
-					nil -> Outpost.start_link(branch_pid: self())
-					supermission ->
-						outpost = Mission.get_outpost(supermission)
-						case Outpost.get_version_on_branch(outpost, self()) do
-							nil -> Outpost.create_version_on_branch(outpost, self())
+				case parent do
+					nil -> Outpost.start_link(branch_pid: self(), parent: parent)
+					parent ->
+						case Outpost.get_version_on_branch(parent, self()) do
+							nil -> Outpost.create_version_on_branch(parent, self())
 							x -> {:ok, x}
 						end
 				end
-			plan -> Outpost.start_link(Map.put(plan, :branch_pid, self()))
+			plan -> Outpost.start_link(branch_pid: self(), plan: plan, parent: parent)
 		end
 
 		Outpost.run_mission(outpost, mission)
@@ -208,7 +212,7 @@ defmodule Cingi.Branch do
 		{:noreply, branch}
 	end
 
-	def handle_cast({:outpost_data, _outpost_pid, data}, branch) do
+	def handle_cast({:outpost_data, _outpost_pid, _data}, branch) do
 		if (branch.cli_pid) do
 			#IO.puts data[:data]
 		end
