@@ -2,8 +2,8 @@ defmodule CingiMissionPlansTest do
 	use ExUnit.Case
 	alias Cingi.Headquarters
 
-	test "runs inputs file" do
-		res = Helper.create_mission_report([file: "test/mission_plans/inputs.plan"])
+	test "runs parallel inputs file" do
+		res = Helper.create_mission_report([file: "test/mission_plans/inputs/parallel.plan"])
 		Headquarters.resume(res[:hq_pid])
 		mission = Helper.check_exit_code(res[:mission_pid])
 		output = mission.output
@@ -69,6 +69,42 @@ defmodule CingiMissionPlansTest do
 		] = Enum.sort(without)
 
 		assert [] = next
+	end
+
+	describe "runs sequential inputs file" do
+		setup do
+			res = Helper.create_mission_report([file: "test/mission_plans/inputs/sequential.plan"])
+			Headquarters.resume(res[:hq_pid])
+			mission = Helper.wait_for_finished(res[:mission_pid])
+			output = mission.output
+				|> Enum.map(&(&1[:data]))
+				|> Enum.join("\n")
+				|> String.split("\n", trim: true)
+			[output: output]
+		end
+
+		test "right amount of output", ctx do
+			assert 7 = length(ctx.output)
+		end
+
+		test "first blahs", ctx do
+			assert ["blah1", "blah2", "blah3"] = Enum.slice(ctx.output, 0, 3)
+		end
+
+		test "gets by integer index", ctx do
+			outputs = Enum.filter(ctx.output, &(case &1 do; "0: " <> _ -> true; _ -> false end))
+			assert ["0: blah1"] = outputs
+		end
+
+		test "gets by $LAST index", ctx do
+			outputs = Enum.filter(ctx.output, &(case &1 do; "last: " <> _ -> true; _ -> false end))
+			assert ["last: blah3"] = outputs
+		end
+
+		test "gets by $LAST and index", ctx do
+			outputs = Enum.filter(ctx.output, &(case &1 do; "last, 1: " <> _ -> true; _ -> false end))
+			assert ["last, 1: blah3", "last, 1: blah2"] = outputs
+		end
 	end
 
 	test "runs when file" do

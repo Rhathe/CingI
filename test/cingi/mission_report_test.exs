@@ -28,6 +28,14 @@ defmodule CingiMissionReportTest do
 			assert [type: "IN", key: "str"] = Report.parse_variable "$IN[\"str\"]"
 		end
 
+		test "parses $IN[$LAST] gives nil" do
+			assert [type: "IN", index: nil] = Report.parse_variable "$IN[$LAST]"
+		end
+
+		test "parses $IN[$LAST] gives last_index" do
+			assert [type: "IN", index: 5] = Report.parse_variable("$IN[$LAST]", last_index: 5)
+		end
+
 		test "fails to parse nil" do
 			assert [error: "Unrecognized pattern "] = Report.parse_variable nil
 		end

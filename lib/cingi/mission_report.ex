@@ -78,9 +78,9 @@ defmodule Cingi.MissionReport do
 		{:reply, report, report}
 	end
 
-	def parse_variable(v) do
+	def parse_variable(v, opts \\ []) do
 		v = v || ""
-		reg = ~r/\$(?<vartype>[a-zA-Z]+)(?<invalids>[^\[]*)(?<bracket1>\[?)(?<quote1>['"]?)(?<key>[a-zA-Z_0-9]*)(?<quote2>['"]?)(?<bracket2>\]?)/
+		reg = ~r/\$(?<vartype>[a-zA-Z]+)(?<invalids>[^\[]*)(?<bracket1>\[?)(?<quote1>['"]?)(?<key>\$?[a-zA-Z_0-9]*)(?<quote2>['"]?)(?<bracket2>\]?)/
 		captured = Regex.named_captures(reg, v)
 		case captured do
 			nil -> [error: "Unrecognized pattern #{v}"]
@@ -106,10 +106,11 @@ defmodule Cingi.MissionReport do
 					%{"quote1" => "'", "quote2" => "'"} -> [type: type, key: key]
 					%{"quote1" => "\"", "quote2" => "\""} -> [type: type, key: key]
 					%{"quote1" => "", "quote2" => ""} ->
-						case Integer.parse(key) do
-							:error -> [type: type, key: key]
-							{i, ""} -> [type: type, index: i]
-							{_, _} -> [error: "Invalid index"]
+						case {key, Integer.parse(key)} do
+							{"$LAST", _} -> [type: type, index: opts[:last_index]]
+							{_, :error} -> [type: type, key: key]
+							{_, {i, ""}} -> [type: type, index: i]
+							{_, {_, _}} -> [error: "Invalid index"]
 						end
 					_ -> [error: "Nonmatching quotes"]
 				end

@@ -7,7 +7,7 @@ missions:
           - echo first3
       second:
         missions:
-          - echo second1 
+          - echo second1
           - echo second2
       third:
         missions:

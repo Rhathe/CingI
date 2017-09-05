@@ -1,6 +1,6 @@
 missions:
   - output:
-      - $OUT['third']
+      - $OUT[$LAST]
       - $OUT['second']
     missions:
       first:

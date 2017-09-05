@@ -154,7 +154,7 @@ defmodule Cingi.FieldAgent do
 
 		input = input
 			|> Enum.map(fn (x) ->
-				case MissionReport.parse_variable(x) do
+				case MissionReport.parse_variable(x, last_index: mission.submissions_num - 1) do
 					[error: _] -> :error
 					[type: "IN"] -> Mission.get_output(mission.prev_mission_pid)
 					[type: "IN", key: key] -> Mission.get_output(mission.prev_mission_pid, key)

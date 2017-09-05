@@ -1,0 +1,17 @@
+missions:
+  - missions:
+      - echo blah1
+      - echo blah2
+      - echo blah3
+  - missions:
+      a:
+        input: $IN[0]
+        missions: "while read line; do echo \"0: $line\"; done"
+      b:
+        input: $IN[$LAST]
+        missions: "while read line; do echo \"last: $line\"; done"
+      c:
+        input:
+          - $IN[$LAST]
+          - $IN[1]
+        missions: "while read line; do echo \"last, 1: $line\"; done"

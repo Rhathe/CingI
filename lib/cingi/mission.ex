@@ -108,7 +108,14 @@ defmodule Cingi.Mission do
 				_ -> mission.key
 			end,
 			skipped: determine_skipped_status(mission),
-			output_filter: get_output_filter(mission.output_filter),
+		}
+
+		# Reconstruct mission after getting submissions_num
+		mission = %Mission{mission |
+			output_filter: get_output_filter(
+				mission.output_filter,
+				last_index: mission.submissions_num - 1
+			),
 		}
 
 		case mission do
@@ -369,7 +376,7 @@ defmodule Cingi.Mission do
 			index ->
 				mission.submission_holds
 					|> Enum.at(index)
-					|> (fn(s) -> s.output end).()
+					|> (fn(s) -> Mission.get(s.pid).output end).()
 
 		end |> Enum.map(&(&1[:data]))
 		{:reply, output, mission}
@@ -424,7 +431,7 @@ defmodule Cingi.Mission do
 		end
 	end
 
-	def get_output_filter(output_plan) do
+	def get_output_filter(output_plan, opts) do
 		case output_plan do
 			nil -> []
 			[] -> []
@@ -432,7 +439,7 @@ defmodule Cingi.Mission do
 			x -> [x]
 		end
 			|> Enum.map(fn(x) ->
-				case MissionReport.parse_variable(x) do
+				case MissionReport.parse_variable(x, opts) do
 					[error: _] -> nil
 					y -> y
 				end
