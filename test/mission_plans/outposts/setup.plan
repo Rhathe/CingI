@@ -1,15 +1,42 @@
 outpost:
   setup_steps:
+    - "echo \"top setup TMP_DIR_1: $TMP_DIR_1\""
+    - "echo \"top setup TMP_DIR_2: $TMP_DIR_2\""
+    - "echo \"top setup TMP_DIR_3: $TMP_DIR_3\""
     - bash test/bash_scripts/tmpdir.sh
   dir: $SETUP['dir']
   env:
-    TMP_DIR: $SETUP['dir']
+    TMP_DIR_1: $SETUP['dir']
+    TMP_DIR_2: $SETUP['dir']
+    TMP_DIR_3: $SETUP['dir']
     TEST_OUTPOSTS: test_outposts_value
 missions:
   - outpost:
+      env:
+        TMP_DIR_2: first_override
       setup_steps:
         - "echo \"echo inside_tmp_dir\" > tmpecho.sh"
+        - "echo \"middle setup TMP_DIR_1: $TMP_DIR_1\""
+        - "echo \"middle setup TMP_DIR_2: $TMP_DIR_2\""
+        - "echo \"middle setup TMP_DIR_3: $TMP_DIR_3\""
     missions:
-      - "echo \"TEST_OUTPOSTS 1: $TEST_OUTPOSTS\""
-      - "echo \"TMP_DIR: $TMP_DIR\""
+      - outpost:
+          env:
+            TMP_DIR_3: second_override
+          setup_steps:
+            - "echo \"bottom setup TMP_DIR_1: $TMP_DIR_1\""
+            - "echo \"bottom setup TMP_DIR_2: $TMP_DIR_2\""
+            - "echo \"bottom setup TMP_DIR_3: $TMP_DIR_3\""
+        missions:
+            - "echo \"bottom TMP_DIR_1: $TMP_DIR_1\""
+            - "echo \"bottom TMP_DIR_2: $TMP_DIR_2\""
+            - "echo \"bottom TMP_DIR_3: $TMP_DIR_3\""
+      - "echo \"middle TMP_DIR_1: $TMP_DIR_1\""
+      - "echo \"middle TMP_DIR_2: $TMP_DIR_2\""
+      - "echo \"middle TMP_DIR_3: $TMP_DIR_3\""
   - bash tmpecho.sh
+  - "echo \"top TMP_DIR_1: $TMP_DIR_1\""
+  - "echo \"top TMP_DIR_2: $TMP_DIR_2\""
+  - "echo \"top TMP_DIR_3: $TMP_DIR_3\""
+  - "rm \"$TMP_DIR_1/tmpecho.sh\""
+  - "rmdir \"$TMP_DIR_1\""
