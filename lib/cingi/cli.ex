@@ -49,9 +49,9 @@ defmodule Cingi.CLI do
 
 	def start_missions(file) do
 		yaml_opts = [file: file, cli_pid: self()]
-		Cingi.Branch.create_report :local_branch, yaml_opts
+		report_pid = Cingi.Branch.create_report :local_branch, yaml_opts
 		receive do
-			{:report, _} -> :ok
+			{:report, ^report_pid} -> :ok
 		end
 	end
 

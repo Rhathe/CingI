@@ -221,9 +221,9 @@ defmodule Cingi.Branch do
 		}}
 	end
 
-	def handle_cast({:report_has_finished, _report_pid, _mission_pid}, branch) do
+	def handle_cast({:report_has_finished, report_pid, _mission_pid}, branch) do
 		if (branch.cli_pid) do
-			send branch.cli_pid, {:report, self()}
+			send branch.cli_pid, {:report, report_pid}
 		end
 		{:noreply, branch}
 	end
