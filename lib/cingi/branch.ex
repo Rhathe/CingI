@@ -129,7 +129,13 @@ defmodule Cingi.Branch do
 
 	def handle_cast({:init_mission, opts}, branch) do
 		{:ok, mission} = Mission.start_link(opts)
-		Headquarters.queue_mission(branch.hq_pid, mission)
+		case opts[:outpost_pid] do
+			# No outpost_pid, sne dto hq for distribution
+			nil -> Headquarters.queue_mission(branch.hq_pid, mission)
+
+			# outpost_pid, bypass hq and run on this branch
+			_ -> Branch.run_mission(self(), mission)
+		end
 		{:noreply, branch}
 	end
 
@@ -143,30 +149,31 @@ defmodule Cingi.Branch do
 	# Because a Mission could have initialized at a different Branch
 	# than the one currently running it, so the outpost that's retrieved
 	# should be the one on the same node as the Branch running the mission
-	def handle_cast({:outpost_for_mission, mission}, branch) do
+	def handle_cast({:outpost_for_mission, mission_pid}, branch) do
+		mission = Mission.get(mission_pid)
+
+		# The parent outpost process is either the outpost of its supermission
+		# or potentially the outpost that started the mission_report, for its setup steps
+		parent = case mission.supermission_pid do
+			nil -> MissionReport.get(mission.report_pid).outpost_pid
+			supermission -> Mission.get_outpost(supermission)
+		end
+
 		# See if mission has an outpost configuration
 		# if so, use that to start initialize a new outpost,
 		# otherwise use an outpost from this mission's supermission,
 		# constructing on this node if necessary
-		parent = case Mission.get(mission).supermission_pid do
-			nil -> nil
-			supermission -> Mission.get_outpost(supermission)
-		end
-
-		{:ok, outpost} = case Mission.get_outpost_plan(mission) do
-			nil ->
-				case parent do
-					nil -> Outpost.start_link(branch_pid: self())
-					parent ->
-						case Outpost.get_version_on_branch(parent, self()) do
-							nil -> Outpost.create_version_on_branch(parent, self())
-							x -> {:ok, x}
-						end
+		{:ok, outpost} = case {Mission.get_outpost_plan(mission_pid), parent} do
+			{nil, nil} -> Outpost.start_link(branch_pid: self())
+			{nil, parent} ->
+				case Outpost.get_version_on_branch(parent, self()) do
+					nil -> Outpost.create_version_on_branch(parent, self())
+					x -> {:ok, x}
 				end
-			plan -> Outpost.start_link(branch_pid: self(), plan: plan, parent_pid: parent)
+			{plan, parent} -> Outpost.start_link(branch_pid: self(), plan: plan, parent_pid: parent)
 		end
 
-		Outpost.run_mission(outpost, mission)
+		Outpost.run_mission(outpost, mission_pid)
 		{:noreply, branch}
 	end
 
