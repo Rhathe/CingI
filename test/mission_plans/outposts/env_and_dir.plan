@@ -3,7 +3,7 @@ outpost:
   env:
     TEST_OUTPOSTS: test_outposts_value
 missions:
-  - pwd
+  - "pwd | xargs echo \"start pwd:\""
   - "echo \"START, TEST_OUTPOSTS: $TEST_OUTPOSTS\""
   - outpost:
       env:
@@ -20,6 +20,6 @@ missions:
       - "echo \"TEST_OUTPOSTS 4: $TEST_OUTPOSTS\""
   - outpost:
       dir: "/tmp"
-    missions: pwd
+    missions: "pwd | xargs echo \"newdir pwd:\""
   - "echo \"END, TEST_OUTPOSTS: $TEST_OUTPOSTS\""
-  - pwd 
+  - "pwd | xargs echo \"end pwd:\""
