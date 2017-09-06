@@ -15,6 +15,7 @@ defmodule Cingi.FieldAgent do
 	defstruct [
 		mission_pid: nil,
 		outpost_pid: nil,
+		stopped: false,
 		proc: nil,
 	]
 
@@ -69,42 +70,47 @@ defmodule Cingi.FieldAgent do
 
 	def handle_cast(:stop, field_agent) do
 		mission = Mission.get(field_agent.mission_pid)
-		case mission.cmd do
-			nil ->
+		case {mission.cmd, field_agent.proc} do
+			{nil, _} ->
 				mission.submission_holds |> Enum.map(fn(h) ->
 					sub = Mission.get(h.pid)
 					FieldAgent.stop(sub.field_agent_pid)
 				end)
-			_ -> case field_agent.proc do
-					nil -> :ok
-					_ -> Proc.send_input field_agent.proc, "kill\n"
-				end
+			{_, nil} -> :ok
+			_ -> Proc.send_input field_agent.proc, "kill\n"
 		end
-		{:noreply, field_agent}
+		{:noreply, %FieldAgent{field_agent | stopped: true}}
 	end
 
 	def handle_cast(:run_bash_process, field_agent) do
-		mission = Mission.get(field_agent.mission_pid)
-		script = "./priv/bin/wrapper.sh"
-		{input_file, is_tmp} = init_input_file(mission)
+		proc = case field_agent.stopped do
+			true ->
+				# Send a result status of 137, same as sigkill
+				FieldAgent.send_result(self(), %{status: 137})
+				nil
+			false ->
+				mission = Mission.get(field_agent.mission_pid)
+				script = "./priv/bin/wrapper.sh"
+				{input_file, is_tmp} = init_input_file(mission)
 
-		cmds = [mission.cmd] ++ case input_file do
-			nil -> []
-			false -> []
-			_ -> [input_file, is_tmp]
+				cmds = [mission.cmd] ++ case input_file do
+					nil -> []
+					false -> []
+					_ -> [input_file, is_tmp]
+				end
+
+				# Porcelain's basic driver only takes nil or :out for err
+				err = case mission.output_with_stderr do
+					true -> :out
+					false -> nil
+				end
+
+				outpost = Outpost.get(field_agent.outpost_pid)
+				env = convert_env(outpost.env)
+				dir = outpost.dir || "."
+
+				Porcelain.spawn(script, cmds, dir: dir, env: env, in: :receive, out: {:send, self()}, err: err)
 		end
-
-		# Porcelain's basic driver only takes nil or :out for err
-		err = case mission.output_with_stderr do
-			true -> :out
-			false -> nil
-		end
-
-		outpost = Outpost.get(field_agent.outpost_pid)
-		env = convert_env(outpost.env)
-		dir = outpost.dir || "."
-
-		proc = Porcelain.spawn(script, cmds, dir: dir, env: env, in: :receive, out: {:send, self()}, err: err)
 		{:noreply, %FieldAgent{field_agent | proc: proc}}
 	end
 
