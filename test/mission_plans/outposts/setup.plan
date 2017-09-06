@@ -1,12 +1,15 @@
 outpost:
   setup_steps:
-    - "echo asfgafasfgasgfa >&2"
+    - bash test/bash_scripts/tmpdir.sh
+  dir: $SETUP['dir']
   env:
+    TMP_DIR: $SETUP['dir']
     TEST_OUTPOSTS: test_outposts_value
 missions:
   - outpost:
       setup_steps:
-        - "echo asfgasgfa >&2"
+        - "echo \"echo inside_tmp_dir\" > tmpecho.sh"
     missions:
       - "echo \"TEST_OUTPOSTS 1: $TEST_OUTPOSTS\""
-  - "echo \"END, TEST_OUTPOSTS: $TEST_OUTPOSTS\""
+      - "echo \"TMP_DIR: $TMP_DIR\""
+  - bash tmpecho.sh

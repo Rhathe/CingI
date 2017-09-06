@@ -101,25 +101,23 @@ defmodule Cingi.Outpost do
 	# Server Callbacks
 
 	def init(opts) do
-		outpost = case {opts[:original], opts[:parent_pid]} do
-			{nil, nil} -> struct(Outpost, opts)
-			{nil, ppid} ->
-				parent = Outpost.get ppid
-				%Outpost{parent | alternates: nil, parent_pid: opts[:parent_pid]}
-			{opid, _} -> Outpost.get opid
+		outpost = case opts[:original] do
+			nil -> struct(Outpost, opts)
+			opid ->
+				o = Outpost.get opid
+				%Outpost{
+					name: o.name,
+					parent_pid: o.parent_pid,
+					alternates: o.alternates,
+					plan: o.plan,
+					setup_steps: o.setup_steps
+				}
 		end
-
-		plan = opts[:plan] || %{}
 
 		outpost = %Outpost{outpost |
 			node: Node.self,
 			pid: self(),
-			branch_pid: nil,
-			is_setup: false, # New outpost, so is not setup by default
-			plan: plan,
-			setup_steps: plan["setup_steps"],
-			dir: Map.get(plan, "dir", outpost.dir),
-			env: Map.merge(outpost.env, Map.get(plan, "env", %{})),
+			setup_steps: outpost.plan["setup_steps"]
 		}
 
 		case opts[:branch_pid] do
@@ -244,8 +242,16 @@ defmodule Cingi.Outpost do
 			end
 		end
 
-		dir = replace_with.(outpost.dir)
-		env = outpost.env
+		base_outpost = case outpost.parent_pid do
+			nil -> outpost
+			ppid -> Outpost.get(ppid)
+		end
+
+		base_dir = outpost.plan["dir"] || base_outpost.dir
+		base_env = Map.merge(base_outpost.env, outpost.plan["env"] || %{})
+
+		dir = replace_with.(base_dir)
+		env = base_env
 			|>
 				Enum.map(fn({k, v}) ->
 					{replace_with.(k), replace_with.(v)}
