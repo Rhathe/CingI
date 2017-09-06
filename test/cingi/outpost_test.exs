@@ -8,7 +8,7 @@ defmodule CingiOutpostTest do
 		{:ok, pid} = Outpost.start_link()
 		assert %{
 			name: nil,
-			is_setup: true,
+			is_setup: false,
 			setup_steps: nil,
 			branch_pid: nil,
 			node: :"nonode@nohost",
