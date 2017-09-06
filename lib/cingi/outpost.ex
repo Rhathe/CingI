@@ -237,10 +237,28 @@ defmodule Cingi.Outpost do
 			_ -> %{}
 		end
 
-		dir = case MissionReport.parse_variable(outpost.dir) do
-			[type: "SETUP", key: "dir"] -> output["dir"]
-			_ -> outpost.dir
+		replace_with = fn(var) ->
+			case MissionReport.parse_variable(var) do
+				[type: "SETUP", key: key] -> output[key]
+				_ -> var
+			end
 		end
+
+		dir = replace_with.(outpost.dir)
+		env = outpost.env
+			|>
+				Enum.map(fn({k, v}) ->
+					{replace_with.(k), replace_with.(v)}
+				end)
+			|>
+				Enum.filter(fn(x) ->
+					case x do
+						{nil, _} -> false
+						{_, nil} -> false
+						_ -> true
+					end
+				end)
+			|> Enum.into(%{})
 
 		Enum.map(outpost.queued_field_agents, &FieldAgent.run_bash_process/1)
 
@@ -249,6 +267,7 @@ defmodule Cingi.Outpost do
 			setting_up: false,
 			queued_field_agents: [],
 			dir: dir,
+			env: env,
 		}}
 	end
 end

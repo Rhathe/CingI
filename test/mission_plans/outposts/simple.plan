@@ -1,12 +1,30 @@
 missions:
   - echo "beginning"
   - missions:
-      - missions: pwd | xargs echo "blah dir"
+      - missions:
+          - pwd | xargs echo "dir"
+          - "echo \"TEST: $TEST\""
+          - "echo \"ENV1: $ENV1\""
+          - "echo \"ENV2: $ENV2\""
+          - "echo \"ENV3: $ENV3\""
+          - "echo \"MISSING_KEY: $MISSING_KEY\""
         outpost:
           dir: $SETUP['dir']
+          env:
+            TEST: test_value
+            $SETUP['env1key']: env1_value
+            $SETUP['env2key']: $SETUP['env1val']
+            ENV3: $SETUP['env2val']
+            $SETUP['missingkey']: missing_val
+            MISSING_KEY: $SETUP['missingval']
           setup_steps:
-            - "echo \"{\\\"dir\\\": \\\"/tmp\\\"}\""
-      - echo "blah 2"
-      - echo "blah 3"
+            - >
+                echo "{
+                \"dir\": \"/tmp\",
+                \"env1key\": \"ENV1\",
+                \"env2key\": \"ENV2\",
+                \"env1val\": \"VAL1\",
+                \"env2val\": \"VAL2\"
+                }"
   - missions:
     - echo "end"

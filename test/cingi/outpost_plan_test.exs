@@ -7,11 +7,31 @@ defmodule CingiOutpostPlansTest do
 		end
 
 		test "right amount of output", ctx do
-			assert 5 = length(ctx.output)
+			assert 8 = length(ctx.output)
 		end
 
 		test "directory changes from setup", ctx do
-			assert "blah dir /tmp" in ctx.output
+			assert "dir /tmp" in ctx.output
+		end
+
+		test "static env works", ctx do
+			assert "TEST: test_value" in ctx.output
+		end
+
+		test "env key is set", ctx do
+			assert "ENV1: env1_value" in ctx.output
+		end
+
+		test "env val is set", ctx do
+			assert "ENV3: VAL2" in ctx.output
+		end
+
+		test "env key and val is set", ctx do
+			assert "ENV2: VAL1" in ctx.output
+		end
+
+		test "missing key is not set", ctx do
+			assert "MISSING_KEY: " in ctx.output
 		end
 	end
 
