@@ -84,4 +84,15 @@ defmodule Helper do
 			mission_pid: mission_pid,
 		]
 	end
+
+	def run_mission_report(plan) do
+		res = Helper.create_mission_report([file: plan])
+		Headquarters.resume(res[:hq_pid])
+		mission = Helper.wait_for_finished(res[:mission_pid])
+		output = mission.output
+			|> Enum.map(&(&1[:data]))
+			|> Enum.join("\n")
+			|> String.split("\n", trim: true)
+		[output: output]
+	end
 end

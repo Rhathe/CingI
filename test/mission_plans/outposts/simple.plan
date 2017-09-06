@@ -1,13 +1,12 @@
 missions:
   - echo "beginning"
   - missions:
-      first_echo:
-        missions: pwd | xargs echo "blah "
+      - missions: pwd | xargs echo "blah dir"
         outpost:
           dir: $SETUP['dir']
           setup_steps:
             - "echo \"{\\\"dir\\\": \\\"/tmp\\\"}\""
-      second_echo: echo "blah 2"
-      third_echo: echo "blah 3"
+      - echo "blah 2"
+      - echo "blah 3"
   - missions:
     - echo "end"
