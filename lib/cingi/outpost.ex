@@ -70,6 +70,10 @@ defmodule Cingi.Outpost do
 		GenServer.cast(pid, {:mission_has_finished, mission_pid, result})
 	end
 
+	def report_has_finished(pid, report_pid, mission_pid) do
+		GenServer.cast(pid, {:report_has_finished, report_pid, mission_pid})
+	end
+
 	def setup_with_steps(pid) do
 		GenServer.cast(pid, :setup_with_steps)
 	end
@@ -200,6 +204,10 @@ defmodule Cingi.Outpost do
 				queue = outpost.queued_field_agents ++ [fa_pid]
 				%Outpost{outpost | queued_field_agents: queue}
 		end
+		{:noreply, outpost}
+	end
+
+	def handle_cast({:report_has_finished, _report_pid, _mission_pid}, outpost) do
 		{:noreply, outpost}
 	end
 end

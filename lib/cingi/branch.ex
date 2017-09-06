@@ -50,8 +50,8 @@ defmodule Cingi.Branch do
 		GenServer.cast(pid, {:mission_has_finished, mission_pid, result})
 	end
 
-	def report_has_finished(pid, report_pid, result) do
-		GenServer.cast(pid, {:report_has_finished, report_pid, result})
+	def report_has_finished(pid, report_pid, mission_pid) do
+		GenServer.cast(pid, {:report_has_finished, report_pid, mission_pid})
 	end
 
 	def outpost_data(pid, outpost_pid, data) do
@@ -129,6 +129,9 @@ defmodule Cingi.Branch do
 
 	def handle_cast({:init_mission, opts}, branch) do
 		{:ok, mission} = Mission.start_link(opts)
+
+		# Report passes in opts of the report_pid and outpost_pid
+		# If there is an outpost_pid, then an outpost sent the report
 		case opts[:outpost_pid] do
 			# No outpost_pid, sne dto hq for distribution
 			nil -> Headquarters.queue_mission(branch.hq_pid, mission)
@@ -213,7 +216,7 @@ defmodule Cingi.Branch do
 		}}
 	end
 
-	def handle_cast({:report_has_finished, _report_pid, _result}, branch) do
+	def handle_cast({:report_has_finished, _report_pid, _mission_pid}, branch) do
 		if (branch.cli_pid) do
 			send branch.cli_pid, {:report, self()}
 		end

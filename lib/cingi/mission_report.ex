@@ -1,6 +1,7 @@
 defmodule Cingi.MissionReport do
 	alias Cingi.MissionReport
 	alias Cingi.Branch
+	alias Cingi.Outpost
 	use GenServer
 
 	defstruct [
@@ -64,8 +65,11 @@ defmodule Cingi.MissionReport do
 		{:noreply, %MissionReport{report | missions: missions}}
 	end
 
-	def handle_cast({:mission_finished, result}, report) do
-		Branch.report_has_finished(report.branch_pid, self(), result)
+	def handle_cast({:mission_finished, mission_pid}, report) do
+		Branch.report_has_finished(report.branch_pid, self(), mission_pid)
+		if report.outpost_pid do
+			Outpost.report_has_finished(report.outpost_pid, self(), mission_pid)
+		end
 		{:noreply, report}
 	end
 
