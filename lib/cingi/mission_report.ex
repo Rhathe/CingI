@@ -6,6 +6,7 @@ defmodule Cingi.MissionReport do
 	defstruct [
 		plan: %{},
 		branch_pid: nil,
+		outpost_pid: nil, # Used when submitted by an outpost trying to setup
 		missions: []
 	]
 
@@ -16,7 +17,7 @@ defmodule Cingi.MissionReport do
 	end
 
 	def initialized_mission(pid, mission_pid) do
-		GenServer.cast(pid, {:mission_init, mission_pid})
+		GenServer.cast(pid, {:mission_has_init, mission_pid})
 	end
 
 	def finished_mission(pid, mission_pid) do
@@ -39,6 +40,7 @@ defmodule Cingi.MissionReport do
 
 	def init(opts) do
 		report = cond do
+			opts[:map] -> start_missions(opts["map"], opts)
 			opts[:string] -> start_missions(YamlElixir.read_from_string(opts[:string]), opts)
 			opts[:file] -> start_missions(YamlElixir.read_from_file(opts[:file]), opts)
 		end
@@ -47,19 +49,17 @@ defmodule Cingi.MissionReport do
 
 	def start_missions(map, opts) do
 		opts = opts |> Keyword.delete(:string) |> Keyword.delete(:file)
-		name = Map.get(map, "name", "MAIN")
-		map = Map.put(map, "name", name)
 		MissionReport.init_mission(self(), [decoded_yaml: map])
 		struct(MissionReport, Keyword.put(opts, :plan, map))
 	end
 
 	def handle_cast({:init_mission, opts}, report) do
-		opts = opts ++ [report_pid: self()]
+		opts = opts ++ [report_pid: self(), outpost_pid: report.outpost_pid]
 		Branch.init_mission(report.branch_pid, opts)
 		{:noreply, report}
 	end
 
-	def handle_cast({:mission_init, mission_pid}, report) do
+	def handle_cast({:mission_has_init, mission_pid}, report) do
 		missions = report.missions ++ [mission_pid]
 		{:noreply, %MissionReport{report | missions: missions}}
 	end

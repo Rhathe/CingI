@@ -15,7 +15,6 @@ defmodule Cingi.Mission do
 
 		decoded_yaml: nil,
 		cmd: nil,
-		bash_process: nil,
 		submissions: nil,
 		submissions_num: nil,
 

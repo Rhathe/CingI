@@ -128,7 +128,8 @@ defmodule Cingi.Branch do
 	end
 
 	def handle_cast({:init_mission, opts}, branch) do
-		Headquarters.init_mission(branch.hq_pid, opts)
+		{:ok, mission} = Mission.start_link(opts)
+		Headquarters.queue_mission(branch.hq_pid, mission)
 		{:noreply, branch}
 	end
 

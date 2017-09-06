@@ -10,7 +10,6 @@ defmodule Cingi.Headquarters do
 
 	alias Cingi.Headquarters
 	alias Cingi.Branch
-	alias Cingi.Mission
 	use GenServer
 
 	defstruct [
@@ -43,8 +42,8 @@ defmodule Cingi.Headquarters do
 		GenServer.call pid, {:link_branch, true_branch_pid}
 	end
 
-	def init_mission(pid, opts) do
-		GenServer.cast pid, {:init_mission, opts}
+	def queue_mission(pid, mission_pid) do
+		GenServer.cast pid, {:queue_mission, mission_pid}
 	end
 
 	def run_missions(pid) do
@@ -81,9 +80,8 @@ defmodule Cingi.Headquarters do
 		{:reply, hq, hq}
 	end
 
-	def handle_cast({:init_mission, opts}, hq) do
-		{:ok, mission} = Mission.start_link(opts)
-		missions = hq.queued_missions ++ [mission]
+	def handle_cast({:queue_mission, mission_pid}, hq) do
+		missions = hq.queued_missions ++ [mission_pid]
 		Headquarters.run_missions(self())
 		{:noreply, %Headquarters{hq | queued_missions: missions}}
 	end
