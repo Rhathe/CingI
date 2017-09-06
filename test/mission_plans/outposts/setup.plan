@@ -11,10 +11,12 @@ outpost:
     TMP_DIR_3: $SETUP['dir']
     TEST_OUTPOSTS: test_outposts_value
 missions:
+  - "pwd | xargs echo 'top pwd:' "
   - outpost:
       env:
         TMP_DIR_2: first_override
       setup_steps:
+        - "pwd | xargs echo 'middle setup pwd:' "
         - "echo \"echo inside_tmp_dir\" > tmpecho.sh"
         - "echo \"middle setup TMP_DIR_1: $TMP_DIR_1\""
         - "echo \"middle setup TMP_DIR_2: $TMP_DIR_2\""
@@ -24,13 +26,16 @@ missions:
           env:
             TMP_DIR_3: second_override
           setup_steps:
+            - "pwd | xargs echo 'bottom setup pwd:' "
             - "echo \"bottom setup TMP_DIR_1: $TMP_DIR_1\""
             - "echo \"bottom setup TMP_DIR_2: $TMP_DIR_2\""
             - "echo \"bottom setup TMP_DIR_3: $TMP_DIR_3\""
         missions:
+            - "pwd | xargs echo 'bottom pwd:' "
             - "echo \"bottom TMP_DIR_1: $TMP_DIR_1\""
             - "echo \"bottom TMP_DIR_2: $TMP_DIR_2\""
             - "echo \"bottom TMP_DIR_3: $TMP_DIR_3\""
+      - "pwd | xargs echo 'middle pwd:' "
       - "echo \"middle TMP_DIR_1: $TMP_DIR_1\""
       - "echo \"middle TMP_DIR_2: $TMP_DIR_2\""
       - "echo \"middle TMP_DIR_3: $TMP_DIR_3\""
