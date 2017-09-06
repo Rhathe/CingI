@@ -16,15 +16,15 @@ defmodule Cingi.Outpost do
 
 		pid: nil,
 		branch_pid: nil,
-		parent_pid: nil,
 
 		setup_steps: nil,
 		alternates: nil,
 
 		is_setup: false,
-		dir: nil,
+		dir: ".",
 		env: %{},
 
+		queued_field_agents: [],
 		missions: [],
 	]
 
@@ -70,6 +70,14 @@ defmodule Cingi.Outpost do
 		GenServer.cast(pid, {:mission_has_finished, mission_pid, result})
 	end
 
+	def setup_with_steps(pid) do
+		GenServer.cast(pid, :setup_with_steps)
+	end
+
+	def queue_field_agent_for_bash(pid, fa_pid) do
+		GenServer.cast(pid, {:queue_field_agent_for_bash, fa_pid})
+	end
+
 	# Call explicitely, don't use Agent module with anonymous functions
 	# See section on "A word on distributed agents"
 	# https://github.com/elixir-lang/elixir/blob/cddc99b1d393e99a45db239334aba7bcbff3b218/lib/elixir/lib/agent.ex#L102
@@ -108,6 +116,7 @@ defmodule Cingi.Outpost do
 			bpid -> Outpost.set_branch(self(), bpid)
 		end
 
+		Outpost.setup_with_steps(self())
 		Outpost.update_alternates(self())
 		{:ok, outpost}
 	end
@@ -174,6 +183,23 @@ defmodule Cingi.Outpost do
 
 	def handle_cast({:mission_has_finished, mission_pid, result}, outpost) do
 		Branch.mission_has_finished(outpost.branch_pid, mission_pid, result)
+		{:noreply, outpost}
+	end
+
+	def handle_cast(:setup_with_steps, outpost) do
+		Enum.map(outpost.queued_field_agents, &FieldAgent.run_bash_process/1)
+		{:noreply, %Outpost{outpost | is_setup: true, queued_field_agents: []}}
+	end
+
+	def handle_cast({:queue_field_agent_for_bash, fa_pid}, outpost) do
+		outpost = case outpost.is_setup do
+			true ->
+				FieldAgent.run_bash_process fa_pid
+				outpost
+			false ->
+				queue = outpost.queued_field_agents ++ [fa_pid]
+				%Outpost{outpost | queued_field_agents: queue}
+		end
 		{:noreply, outpost}
 	end
 end

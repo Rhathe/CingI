@@ -56,7 +56,7 @@ defmodule Cingi.FieldAgent do
 
 		cond do
 			mission.skipped -> FieldAgent.send_result(self(), %{status: nil})
-			mission.cmd -> FieldAgent.run_bash_process(self())
+			mission.cmd -> Outpost.queue_field_agent_for_bash(field_agent.outpost_pid, self())
 			mission.submissions -> Mission.run_submissions(mpid, mission.prev_mission_pid)
 		end
 
