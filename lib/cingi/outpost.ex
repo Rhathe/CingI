@@ -6,8 +6,10 @@ defmodule Cingi.Outpost do
 	"""
 
 	alias Cingi.Outpost
-	alias Cingi.FieldAgent
 	alias Cingi.Branch
+	alias Cingi.FieldAgent
+	alias Cingi.Mission
+	alias Cingi.MissionReport
 	use GenServer
 
 	defstruct [
@@ -222,13 +224,31 @@ defmodule Cingi.Outpost do
 		{:noreply, outpost}
 	end
 
-	def handle_cast({:report_has_finished, _report_pid, _mission_pid}, outpost) do
+	def handle_cast({:report_has_finished, _report_pid, mission_pid}, outpost) do
+		# Get last line of output from setup and see if it is in a proper format
+		output = try do
+			Mission.get_output(mission_pid)
+				|> Enum.join("\n")
+				|> String.split("\n", trim: true)
+				|> Enum.take(-1)
+				|> Enum.at(0)
+				|> YamlElixir.read_from_string
+		rescue
+			_ -> %{}
+		end
+
+		dir = case MissionReport.parse_variable(outpost.dir) do
+			[type: "SETUP", key: "dir"] -> output["dir"]
+			_ -> outpost.dir
+		end
+
 		Enum.map(outpost.queued_field_agents, &FieldAgent.run_bash_process/1)
 
 		{:noreply, %Outpost{outpost |
 			is_setup: true,
 			setting_up: false,
 			queued_field_agents: [],
+			dir: dir,
 		}}
 	end
 end

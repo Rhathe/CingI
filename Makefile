@@ -17,7 +17,8 @@ build-cli:
 
 test-cli:
 	make build-cli
-	./cingi --file test/mission_plans/outposts/setup.plan
+	./cingi --file test/mission_plans/outposts/simple.plan
+	#./cingi --file test/mission_plans/outposts/setup.plan
 	#./cingi --file test/mission_plans/outposts/env_and_dir.plan
 
 test-multi-cli:

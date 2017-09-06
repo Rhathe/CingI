@@ -109,7 +109,12 @@ defmodule Cingi.FieldAgent do
 				env = convert_env(outpost.env)
 				dir = outpost.dir || "."
 
-				Porcelain.spawn(script, cmds, dir: dir, env: env, in: :receive, out: {:send, self()}, err: err)
+				try do
+					Porcelain.spawn(script, cmds, dir: dir, env: env, in: :receive, out: {:send, self()}, err: err)
+				rescue
+					# Error, send result as a 137 sigkill
+					_ -> FieldAgent.send_result(self(), %{status: 137})
+				end
 		end
 		{:noreply, %FieldAgent{field_agent | proc: proc}}
 	end
