@@ -41,7 +41,7 @@ defmodule Cingi.MissionReport do
 
 	def init(opts) do
 		report = cond do
-			opts[:map] -> start_missions(opts["map"], opts)
+			opts[:map] -> start_missions(opts[:map], opts)
 			opts[:string] -> start_missions(YamlElixir.read_from_string(opts[:string]), opts)
 			opts[:file] -> start_missions(YamlElixir.read_from_file(opts[:file]), opts)
 		end
@@ -49,7 +49,7 @@ defmodule Cingi.MissionReport do
 	end
 
 	def start_missions(map, opts) do
-		opts = opts |> Keyword.delete(:string) |> Keyword.delete(:file)
+		opts = opts |> Keyword.delete(:string) |> Keyword.delete(:file) |> Keyword.delete(:map)
 		MissionReport.init_mission(self(), [decoded_yaml: map])
 		struct(MissionReport, Keyword.put(opts, :plan, map))
 	end

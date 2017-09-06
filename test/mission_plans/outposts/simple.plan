@@ -5,7 +5,7 @@ missions:
         missions: echo "blah 1"
         outpost:
           setup_steps:
-            - "echo \"{\\\"dir\\\\": \\\\"/tmp/blah\\\\"}\""
+            - "echo \"{\\\"dir\\\": \\\"/tmp/blah\\\"}\""
       second_echo: echo "blah 2"
       third_echo: echo "blah 3"
   - missions:

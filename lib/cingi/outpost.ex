@@ -20,6 +20,7 @@ defmodule Cingi.Outpost do
 		setup_steps: nil,
 		alternates: nil,
 
+		plan: %{},
 		is_setup: false,
 		dir: ".",
 		env: %{},
@@ -111,8 +112,8 @@ defmodule Cingi.Outpost do
 			pid: self(),
 			branch_pid: nil,
 			is_setup: false, # New outpost, so is not setup by default
-			dir: Map.get(plan, "dir", outpost.dir),
-			env: Map.merge(outpost.env, Map.get(plan, "env", %{})),
+			plan: plan,
+			setup_steps: plan["setup_steps"],
 		}
 
 		case opts[:branch_pid] do
@@ -191,8 +192,13 @@ defmodule Cingi.Outpost do
 	end
 
 	def handle_cast(:setup_with_steps, outpost) do
-		Enum.map(outpost.queued_field_agents, &FieldAgent.run_bash_process/1)
-		{:noreply, %Outpost{outpost | is_setup: true, queued_field_agents: []}}
+		case outpost.setup_steps do
+			n when n in [nil, []] -> Outpost.report_has_finished(self(), nil, nil)
+			setup_steps ->
+				yaml_opts = [map: %{"missions" => setup_steps}, outpost_pid: self()]
+				Branch.create_report outpost.branch_pid, yaml_opts
+		end
+		{:noreply, outpost}
 	end
 
 	def handle_cast({:queue_field_agent_for_bash, fa_pid}, outpost) do
@@ -208,6 +214,12 @@ defmodule Cingi.Outpost do
 	end
 
 	def handle_cast({:report_has_finished, _report_pid, _mission_pid}, outpost) do
-		{:noreply, outpost}
+		Enum.map(outpost.queued_field_agents, &FieldAgent.run_bash_process/1)
+		{:noreply, %Outpost{outpost |
+			is_setup: true,
+			queued_field_agents: [],
+			dir: Map.get(outpost.plan, "dir", outpost.dir),
+			env: Map.merge(outpost.env, Map.get(outpost.plan, "env", %{})),
+		}}
 	end
 end
