@@ -156,9 +156,14 @@ defmodule Cingi.Branch do
 		mission = Mission.get(mission_pid)
 
 		# The parent outpost process is either the outpost of its supermission
-		# or potentially the outpost that started the mission_report, for its setup steps
+		# or potentially the parent of the outpost that started the mission_report,
+		# as that outpost would be for setting up and needs its parent environnment to do so
 		parent = case mission.supermission_pid do
-			nil -> MissionReport.get(mission.report_pid).outpost_pid
+			nil ->
+				case MissionReport.get(mission.report_pid).outpost_pid do
+					nil -> nil
+					opid -> Outpost.get(opid).parent_pid
+				end
 			supermission -> Mission.get_outpost(supermission)
 		end
 

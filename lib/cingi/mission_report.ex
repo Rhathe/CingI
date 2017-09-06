@@ -66,9 +66,10 @@ defmodule Cingi.MissionReport do
 	end
 
 	def handle_cast({:mission_finished, mission_pid}, report) do
-		Branch.report_has_finished(report.branch_pid, self(), mission_pid)
 		if report.outpost_pid do
 			Outpost.report_has_finished(report.outpost_pid, self(), mission_pid)
+		else
+			Branch.report_has_finished(report.branch_pid, self(), mission_pid)
 		end
 		{:noreply, report}
 	end

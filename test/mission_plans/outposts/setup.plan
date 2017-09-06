@@ -1,10 +1,12 @@
 outpost:
+  setup_steps:
+    - "echo asfgafasfgasgfa >&2"
   env:
     TEST_OUTPOSTS: test_outposts_value
 missions:
-  - "echo \"START, TEST_OUTPOSTS: $TEST_OUTPOSTS\""
   - outpost:
       setup_steps:
         - "echo asfgasgfa >&2"
     missions:
       - "echo \"TEST_OUTPOSTS 1: $TEST_OUTPOSTS\""
+  - "echo \"END, TEST_OUTPOSTS: $TEST_OUTPOSTS\""

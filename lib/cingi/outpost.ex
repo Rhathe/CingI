@@ -16,6 +16,7 @@ defmodule Cingi.Outpost do
 
 		pid: nil,
 		branch_pid: nil,
+		parent_pid: nil,
 
 		setup_steps: nil,
 		alternates: nil,
@@ -102,7 +103,7 @@ defmodule Cingi.Outpost do
 			{nil, nil} -> struct(Outpost, opts)
 			{nil, ppid} ->
 				parent = Outpost.get ppid
-				%Outpost{parent | alternates: nil}
+				%Outpost{parent | alternates: nil, parent_pid: opts[:parent_pid]}
 			{opid, _} -> Outpost.get opid
 		end
 
@@ -115,6 +116,8 @@ defmodule Cingi.Outpost do
 			is_setup: false, # New outpost, so is not setup by default
 			plan: plan,
 			setup_steps: plan["setup_steps"],
+			dir: Map.get(plan, "dir", outpost.dir),
+			env: Map.merge(outpost.env, Map.get(plan, "env", %{})),
 		}
 
 		case opts[:branch_pid] do
@@ -221,12 +224,11 @@ defmodule Cingi.Outpost do
 
 	def handle_cast({:report_has_finished, _report_pid, _mission_pid}, outpost) do
 		Enum.map(outpost.queued_field_agents, &FieldAgent.run_bash_process/1)
+
 		{:noreply, %Outpost{outpost |
 			is_setup: true,
 			setting_up: false,
 			queued_field_agents: [],
-			dir: Map.get(outpost.plan, "dir", outpost.dir),
-			env: Map.merge(outpost.env, Map.get(outpost.plan, "env", %{})),
 		}}
 	end
 end
