@@ -155,14 +155,14 @@ defmodule Cingi.Branch do
 		{:ok, outpost} = case Mission.get_outpost_plan(mission) do
 			nil ->
 				case parent do
-					nil -> Outpost.start_link(branch_pid: self(), parent: parent)
+					nil -> Outpost.start_link(branch_pid: self())
 					parent ->
 						case Outpost.get_version_on_branch(parent, self()) do
 							nil -> Outpost.create_version_on_branch(parent, self())
 							x -> {:ok, x}
 						end
 				end
-			plan -> Outpost.start_link(branch_pid: self(), plan: plan, parent: parent)
+			plan -> Outpost.start_link(branch_pid: self(), plan: plan, parent_pid: parent)
 		end
 
 		Outpost.run_mission(outpost, mission)

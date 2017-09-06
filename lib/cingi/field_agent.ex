@@ -102,7 +102,9 @@ defmodule Cingi.FieldAgent do
 
 		outpost = Outpost.get(field_agent.outpost_pid)
 		env = convert_env(outpost.env)
-		proc = Porcelain.spawn(script, cmds, env: env, in: :receive, out: {:send, self()}, err: err)
+		dir = outpost.dir || "."
+
+		proc = Porcelain.spawn(script, cmds, dir: dir, env: env, in: :receive, out: {:send, self()}, err: err)
 		{:noreply, %FieldAgent{field_agent | proc: proc}}
 	end
 
@@ -176,6 +178,6 @@ defmodule Cingi.FieldAgent do
 	end
 
 	def convert_env(env_map) do
-		Enum.map(env_map || [], &(&1))
+		Enum.map(env_map || %{}, &(&1))
 	end
 end

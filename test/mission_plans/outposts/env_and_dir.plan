@@ -1,6 +1,25 @@
 outpost:
+  dir: "/"
   env:
     TEST_OUTPOSTS: test_outposts_value
 missions:
-  - "echo \"TEST_OUTPOSTS 1: $TEST_OUTPOSTS\""
-  - "echo \"TEST_OUTPOSTS 2: $TEST_OUTPOSTS\""
+  - pwd
+  - "echo \"START, TEST_OUTPOSTS: $TEST_OUTPOSTS\""
+  - outpost:
+      env:
+        TEST_OUTPOSTS_2: test_outposts_2_value
+    missions:
+      - "echo \"TEST_OUTPOSTS 1: $TEST_OUTPOSTS\""
+      - "echo \"TEST_OUTPOSTS 2: $TEST_OUTPOSTS_2\""
+  - outpost:
+      env:
+        TEST_OUTPOSTS: test_outposts_override
+        TEST_OUTPOSTS_3: test_outposts_3_value
+    missions:
+      - "echo \"TEST_OUTPOSTS 3: $TEST_OUTPOSTS_3\""
+      - "echo \"TEST_OUTPOSTS 4: $TEST_OUTPOSTS\""
+  - outpost:
+      dir: "/tmp"
+    missions: pwd
+  - "echo \"END, TEST_OUTPOSTS: $TEST_OUTPOSTS\""
+  - pwd 

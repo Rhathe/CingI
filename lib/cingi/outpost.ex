@@ -13,15 +13,17 @@ defmodule Cingi.Outpost do
 	defstruct [
 		name: nil,
 		node: nil,
-		pid: nil,
 
+		pid: nil,
 		branch_pid: nil,
+		parent_pid: nil,
+
 		setup_steps: nil,
 		alternates: nil,
 
 		is_setup: false,
 		dir: nil,
-		env: [],
+		env: %{},
 
 		missions: [],
 	]
@@ -82,9 +84,12 @@ defmodule Cingi.Outpost do
 	# Server Callbacks
 
 	def init(opts) do
-		outpost = case opts[:original] do
-			nil -> struct(Outpost, opts)
-			opid -> Outpost.get opid
+		outpost = case {opts[:original], opts[:parent_pid]} do
+			{nil, nil} -> struct(Outpost, opts)
+			{nil, ppid} ->
+				parent = Outpost.get ppid
+				%Outpost{parent | alternates: nil}
+			{opid, _} -> Outpost.get opid
 		end
 
 		plan = opts[:plan] || %{}
@@ -93,7 +98,9 @@ defmodule Cingi.Outpost do
 			node: Node.self,
 			pid: self(),
 			branch_pid: nil,
-			env: outpost.env ++ Map.get(plan, "env", [])
+			is_setup: false, # New outpost, so is not setup by default
+			dir: Map.get(plan, "dir", outpost.dir),
+			env: Map.merge(outpost.env, Map.get(plan, "env", %{})),
 		}
 
 		case opts[:branch_pid] do
