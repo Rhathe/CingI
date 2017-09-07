@@ -6,6 +6,7 @@ defmodule Cingi.Mission do
 
 	defstruct [
 		key: "",
+		index: nil,
 		name: nil,
 
 		report_pid: nil,
@@ -138,6 +139,8 @@ defmodule Cingi.Mission do
 
 		case decoded_yaml do
 			%{} -> construct_opts_from_map(opts)
+			[] -> opts
+			[_|_] -> opts ++ [submissions: decoded_yaml |> Enum.with_index]
 			_ -> opts ++ [cmd: decoded_yaml]
 		end
 	end

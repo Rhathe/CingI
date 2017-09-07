@@ -3,13 +3,14 @@ missions:
   - missions:
       first_echo:
         missions: echo "match 1"
-      second_echo: echo "ignored 2"
-      third_echo: echo "match 3"
-      fourth_echo:
+      second_echo:
+        - echo "ignored 2"
+        - echo "match 3"
+      third_echo:
         missions:
           - echo "ignored 4"
-          - echo "match 5"
-          - echo "ignored 6"
+          - - echo "match 5"
+            - echo "ignored 6"
   - missions: grep match
     input: $IN
   - missions:
