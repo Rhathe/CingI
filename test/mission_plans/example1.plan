@@ -1,8 +1,7 @@
 missions:
   - echo "beginning"
   - missions:
-      first_echo:
-        missions: echo "match 1"
+      first_echo: echo "match 1"
       second_echo:
         - echo "ignored 2"
         - echo "match 3"
@@ -11,6 +10,8 @@ missions:
           - echo "ignored 4"
           - - echo "match 5"
             - echo "ignored 6"
+      fourth_echo:
+        missions: echo "match 7"
   - missions: grep match
     input: $IN
   - missions:

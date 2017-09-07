@@ -153,15 +153,15 @@ defmodule CingiBranchTest do
 		Headquarters.resume(hpid)
 		mission = Helper.check_exit_code(res[:mission_pid])
 		output = mission.output |> Enum.map(&(&1[:data]))
-		assert ["beginning\n", a, b, c, d, e, f, grepped, "end\n"] = output
+		assert ["beginning\n", a, b, c, d, e, f, g, grepped, "end\n"] = output
 
-		l1 = Enum.sort(["match 1\n", "ignored 2\n", "match 3\n", "ignored 4\n", "match 5\n", "ignored 6\n"])
-		l2 = Enum.sort([a, b, c, d, e, f])
+		l1 = Enum.sort(["match 1\n", "ignored 2\n", "match 3\n", "ignored 4\n", "match 5\n", "ignored 6\n", "match 7\n"])
+		l2 = Enum.sort([a, b, c, d, e, f, g])
 		assert ^l1 = l2
 
 		matches = grepped |> String.split("\n") |> Enum.sort
-		assert length(matches) == 4
-		match_check = Enum.sort(["match 1", "match 3", "match 5", ""])
+		assert length(matches) == 5
+		match_check = Enum.sort(["match 1", "match 3", "match 5", "match 7", ""])
 		assert ^match_check = matches
 	end
 
