@@ -245,7 +245,7 @@ defmodule Cingi.Branch do
 
 	def handle_cast({:outpost_data, _outpost_pid, _data}, branch) do
 		if (branch.cli_pid) do
-			#IO.puts data[:data]
+			#IO.puts _data[:data]
 		end
 		{:noreply, branch}
 	end

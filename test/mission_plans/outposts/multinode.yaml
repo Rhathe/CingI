@@ -48,12 +48,14 @@ missions:
             - "echo \"two bottom TMP_DIR_2: $TMP_DIR_2\""
             - "echo \"two bottom TMP_DIR_3: $TMP_DIR_3\""
           three:
-            - "pwd | xargs echo 'three bottom pwd:' "
-            - "echo \"three bottom TMP_DIR_1: $TMP_DIR_1\""
-            - "echo \"three bottom TMP_DIR_2: $TMP_DIR_2\""
-            - "echo \"three bottom TMP_DIR_3: $TMP_DIR_3\""
+            missions:
+              a: "pwd | xargs echo 'three bottom pwd:' "
+              b: "echo \"three bottom TMP_DIR_1: $TMP_DIR_1\""
+              c: "echo \"three bottom TMP_DIR_2: $TMP_DIR_2\""
+              d: "echo \"three bottom TMP_DIR_3: $TMP_DIR_3\""
           four:
-            - "pwd | xargs echo 'four bottom pwd:' "
-            - "echo \"four bottom TMP_DIR_1: $TMP_DIR_1\""
-            - "echo \"four bottom TMP_DIR_2: $TMP_DIR_2\""
-            - "echo \"four bottom TMP_DIR_3: $TMP_DIR_3\""
+            missions:
+              a: "pwd | xargs echo 'four bottom pwd:' "
+              b: "echo \"four bottom TMP_DIR_1: $TMP_DIR_1\""
+              c: "echo \"four bottom TMP_DIR_2: $TMP_DIR_2\""
+              d: "echo \"four bottom TMP_DIR_3: $TMP_DIR_3\""
