@@ -30,6 +30,10 @@ defmodule Cingi.Branch do
 		GenServer.call(pid, {:yaml, yaml_tuple})
 	end
 
+	def queue_report(pid, yaml_tuple) do
+		GenServer.cast(pid, {:yaml, yaml_tuple})
+	end
+
 	def init_mission(pid, opts) do
 		GenServer.cast(pid, {:init_mission, opts})
 	end
@@ -99,9 +103,8 @@ defmodule Cingi.Branch do
 	end
 
 	def handle_call({:yaml, yaml_tuple}, _from, branch) do
-		{:ok, missionReport} = MissionReport.start_link(yaml_tuple ++ [branch_pid: self()])
-		reports = branch.mission_reports ++ [missionReport]
-		{:reply, missionReport, %Branch{branch | mission_reports: reports}}
+		{missionReport, branch} = get_branch_and_new_report(branch, yaml_tuple)
+		{:reply, missionReport, branch}
 	end
 
 	def handle_call(:pause, _from, branch) do
@@ -136,6 +139,11 @@ defmodule Cingi.Branch do
 			send branch.cli_pid, :terminate
 		end
 		{:reply, branch, branch}
+	end
+
+	def handle_cast({:yaml, yaml_tuple}, branch) do
+		{_, branch} = get_branch_and_new_report(branch, yaml_tuple)
+		{:noreply, branch}
 	end
 
 	def handle_cast({:init_mission, opts}, branch) do
@@ -254,5 +262,11 @@ defmodule Cingi.Branch do
 			|> Enum.map(&(IO.puts &1))
 		end
 		{:noreply, branch}
+	end
+
+	def get_branch_and_new_report(branch, yaml_tuple) do
+		{:ok, missionReport} = MissionReport.start_link(yaml_tuple ++ [branch_pid: self()])
+		reports = branch.mission_reports ++ [missionReport]
+		{missionReport, %Branch{branch | mission_reports: reports}}
 	end
 end

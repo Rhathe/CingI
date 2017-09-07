@@ -17,7 +17,7 @@ build-cli:
 
 test-cli:
 	make build-cli
-	./cingi --file test/mission_plans/outposts/setup.yaml
+	./cingi --file test/mission_plans/outposts/multinode.yaml
 
 test-multi-cli:
 	make test-hq-cli &

@@ -70,10 +70,6 @@ defmodule Cingi.Outpost do
 		GenServer.cast(pid, {:run_mission, mission})
 	end
 
-	def set_branch(pid, branch_pid) do
-		GenServer.cast(pid, {:set_branch, branch_pid})
-	end
-
 	def mission_has_run(pid, mission_pid) do
 		GenServer.cast(pid, {:mission_has_run, mission_pid})
 	end
@@ -127,14 +123,10 @@ defmodule Cingi.Outpost do
 
 		outpost = %Outpost{outpost |
 			node: Node.self,
+			branch_pid: opts[:branch_pid],
 			pid: self(),
 			setup_steps: outpost.plan["setup_steps"]
 		}
-
-		case opts[:branch_pid] do
-			nil -> :ok
-			bpid -> Outpost.set_branch(self(), bpid)
-		end
 
 		Outpost.update_parent(self())
 		Outpost.update_alternates(self())
@@ -200,12 +192,6 @@ defmodule Cingi.Outpost do
 		{:noreply, %Outpost{outpost | missions: outpost.missions ++ [mission]}}
 	end
 
-	def handle_cast({:set_branch, branch_pid}, outpost) do
-		# Need to get pid from branch itself, since a name can be passed in
-		branch_pid = Branch.get(branch_pid).pid
-		{:noreply, %Outpost{outpost | branch_pid: branch_pid}}
-	end
-
 	def handle_cast({:mission_has_run, mission_pid}, outpost) do
 		Branch.mission_has_run(outpost.branch_pid, mission_pid)
 		{:noreply, outpost}
@@ -225,7 +211,7 @@ defmodule Cingi.Outpost do
 					{setup_steps, _} ->
 						setup_steps = setup_steps || [":"]
 						yaml_opts = [map: %{"missions" => setup_steps}, outpost_pid: self()]
-						Branch.create_report outpost.branch_pid, yaml_opts
+						Branch.queue_report outpost.branch_pid, yaml_opts
 				end
 				%Outpost{outpost | setting_up: true}
 		end
