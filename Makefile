@@ -27,12 +27,12 @@ test-multi-cli:
 test-hq-cli:
 	epmd -daemon
 	make build-cli
-	./cingi --file test/mission_plans/when.plan --minbranches 2 --name one@localhost --cookie test
+	./cingi --file test/mission_plans/outposts/multinode.yaml --minbranches 2 --name one@localhost --cookie test
 
 test-branch-cli:
 	epmd -daemon
 	make build-cli
-	./cingi --file test/mission_plans/when.plan --connectto one@localhost --name two@localhost --cookie test
+	./cingi --file test/mission_plans/outposts/multinode.yaml --connectto one@localhost --name two@localhost --cookie test
 
 kill-all-epmd: FORCE
 	for pid in $$(ps -ef | grep -v "grep" | grep "epmd -daemon" | awk '{print $$2}'); do kill -9 $$pid; done

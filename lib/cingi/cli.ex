@@ -36,7 +36,7 @@ defmodule Cingi.CLI do
 		Node.monitor host, true
 		receive do
 			{:nodedown, _} -> :error
-			_ -> :ok
+			:terminate -> :ok
 		end
 	end
 
@@ -51,7 +51,7 @@ defmodule Cingi.CLI do
 		yaml_opts = [file: file, cli_pid: self()]
 		report_pid = Cingi.Branch.create_report :local_branch, yaml_opts
 		receive do
-			{:report, ^report_pid} -> :ok
+			{:report, ^report_pid} -> Cingi.Headquarters.terminate_branches({:global, :hq})
 		end
 	end
 
@@ -73,7 +73,9 @@ defmodule Cingi.CLI do
 			n ->
 				IO.puts "Waiting for #{n} branches to connect"
 				receive do
-					{:branch_connect, _} -> wait_for_branches(n - 1)
+					{:branch_connect, _} ->
+						IO.puts "branch connected"
+						wait_for_branches(n - 1)
 				end
 		end
 	end

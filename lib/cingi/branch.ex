@@ -74,6 +74,10 @@ defmodule Cingi.Branch do
 		GenServer.call(pid, :get)
 	end
 
+	def terminate(pid) do
+		GenServer.call(pid, :terminate)
+	end
+
 	def link_headquarters(pid, hq_pid) do
 		GenServer.call(pid, {:link_headquarters, hq_pid})
 	end
@@ -124,6 +128,13 @@ defmodule Cingi.Branch do
 
 	def handle_call({:link_cli, cli_pid}, _from, branch) do
 		branch = %Branch{branch | cli_pid: cli_pid}
+		{:reply, branch, branch}
+	end
+
+	def handle_call(:terminate, _from, branch) do
+		if (branch.cli_pid) do
+			send branch.cli_pid, :terminate
+		end
 		{:reply, branch, branch}
 	end
 

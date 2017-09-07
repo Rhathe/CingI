@@ -42,6 +42,10 @@ defmodule Cingi.Headquarters do
 		GenServer.call pid, {:link_branch, true_branch_pid}
 	end
 
+	def terminate_branches(pid) do
+		GenServer.call pid, :terminate_branches
+	end
+
 	def queue_mission(pid, mission_pid) do
 		GenServer.cast pid, {:queue_mission, mission_pid}
 	end
@@ -77,6 +81,11 @@ defmodule Cingi.Headquarters do
 	def handle_call({:link_branch, branch_pid}, _from, hq) do
 		hq = %Headquarters{hq | branch_pids: hq.branch_pids ++ [branch_pid]}
 		Branch.link_headquarters(branch_pid, self())
+		{:reply, hq, hq}
+	end
+
+	def handle_call(:terminate_branches, _from, hq) do
+		get_all_branches(hq) |> Enum.map(&Branch.terminate/1)
 		{:reply, hq, hq}
 	end
 
