@@ -15,7 +15,7 @@ defmodule Cingi.Mission do
 		submission_holds: [],
 		field_agent_pid: nil,
 
-		decoded_yaml: nil,
+		mission_plan: nil,
 		cmd: nil,
 		submissions: nil,
 		submissions_num: nil,
@@ -92,9 +92,9 @@ defmodule Cingi.Mission do
 	# Server Callbacks
 
 	def init(opts) do
-		opts = case opts[:decoded_yaml] do
+		opts = case opts[:mission_plan] do
 			nil -> opts
-			_ -> construct_opts_from_decoded_yaml(opts)
+			_ -> construct_opts_from_mission_plan(opts)
 		end
 
 		mission = struct(Mission, opts)
@@ -121,7 +121,7 @@ defmodule Cingi.Mission do
 
 		case mission do
 			%{cmd: nil, submissions: nil} ->
-				raise "Must have cmd or submissions, got #{inspect(opts[:decoded_yaml])}"
+				raise "Must have cmd or submissions, got #{inspect(opts[:mission_plan])}"
 			_ -> :ok
 		end
 
@@ -132,21 +132,21 @@ defmodule Cingi.Mission do
 		{:ok, mission}
 	end
 
-	defp construct_opts_from_decoded_yaml(opts) do
+	defp construct_opts_from_mission_plan(opts) do
 		del = &Keyword.delete/2
 		opts = opts |> del.(:cmd) |> del.(:submissions)
-		decoded_yaml = opts[:decoded_yaml]
+		mission_plan = opts[:mission_plan]
 
-		case decoded_yaml do
+		case mission_plan do
 			%{} -> construct_opts_from_map(opts)
 			[] -> opts
-			[_|_] -> opts ++ [submissions: decoded_yaml |> Enum.with_index]
-			_ -> opts ++ [cmd: decoded_yaml]
+			[_|_] -> opts ++ [submissions: mission_plan |> Enum.with_index]
+			_ -> opts ++ [cmd: mission_plan]
 		end
 	end
 
 	defp construct_opts_from_map(opts) do
-		map = opts[:decoded_yaml]
+		map = opts[:mission_plan]
 		keys = Map.keys(map)
 
 		opts ++ case length(keys) do
@@ -314,8 +314,8 @@ defmodule Cingi.Mission do
 
 	def handle_cast({:run_submissions, prev_pid}, mission) do
 		[running, remaining] = case mission.submissions do
-			%{} -> [Enum.map(mission.submissions, fn({k, v}) -> [decoded_yaml: v, key: k] end), %{}]
-			[{submission, index}|b] -> [[[decoded_yaml: submission, index: index]], b]
+			%{} -> [Enum.map(mission.submissions, fn({k, v}) -> [mission_plan: v, key: k] end), %{}]
+			[{submission, index}|b] -> [[[mission_plan: submission, index: index]], b]
 			[] -> [[], []]
 			nil -> [[], nil]
 		end
@@ -387,7 +387,7 @@ defmodule Cingi.Mission do
 	end
 
 	def handle_call(:get_outpost_plan, _from, mission) do
-		plan = case mission.decoded_yaml do
+		plan = case mission.mission_plan do
 			%{"outpost" => plan} -> plan
 			_ -> nil
 		end

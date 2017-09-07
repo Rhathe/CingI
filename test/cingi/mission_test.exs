@@ -20,7 +20,7 @@ defmodule CingiMissionTest do
 	end
 
 	test "constructs with yaml command" do
-		{:ok, pid} = Mission.start_link([decoded_yaml: "echo 1"])
+		{:ok, pid} = Mission.start_link([mission_plan: "echo 1"])
 		mission = Mission.get(pid)
 		assert mission.key == "echo_1"
 		assert mission.cmd == "echo 1"
@@ -28,7 +28,7 @@ defmodule CingiMissionTest do
 	end
 
 	test "constructs with yaml map" do
-		{:ok, pid} = Mission.start_link([decoded_yaml: %{
+		{:ok, pid} = Mission.start_link([mission_plan: %{
 			"name" => "mission_1",
 			"missions" => "echo 1",
 		}])
@@ -39,7 +39,7 @@ defmodule CingiMissionTest do
 	end
 
 	test "constructs with yaml map and just command, key is missions" do
-		{:ok, pid} = Mission.start_link([decoded_yaml: %{
+		{:ok, pid} = Mission.start_link([mission_plan: %{
 			"missions" => "echo 1"
 		}])
 		mission = Mission.get(pid)
@@ -49,7 +49,7 @@ defmodule CingiMissionTest do
 	end
 
 	test "constructs with yaml map and just command, keys are missions" do
-		{:ok, pid} = Mission.start_link([decoded_yaml: %{
+		{:ok, pid} = Mission.start_link([mission_plan: %{
 			"missions" => %{
 				"missions" => "echo 1"
 			}
@@ -61,7 +61,7 @@ defmodule CingiMissionTest do
 	end
 
 	test "constructs with yaml map and array of commands" do
-		{:ok, pid} = Mission.start_link([decoded_yaml: %{
+		{:ok, pid} = Mission.start_link([mission_plan: %{
 			"name" => "mission_1",
 			"missions" => ["echo 1", "echo 2"],
 		}])
@@ -72,7 +72,7 @@ defmodule CingiMissionTest do
 	end
 
 	test "constructs with yaml map and map of commands" do
-		{:ok, pid} = Mission.start_link([decoded_yaml: %{
+		{:ok, pid} = Mission.start_link([mission_plan: %{
 			"name" => "mission_1",
 			"missions" => %{
 				"submission 1" => "echo 1",

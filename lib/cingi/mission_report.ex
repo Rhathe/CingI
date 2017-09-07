@@ -50,7 +50,7 @@ defmodule Cingi.MissionReport do
 
 	def start_missions(map, opts) do
 		opts = opts |> Keyword.delete(:string) |> Keyword.delete(:file) |> Keyword.delete(:map)
-		MissionReport.init_mission(self(), [decoded_yaml: map])
+		MissionReport.init_mission(self(), [mission_plan: map])
 		struct(MissionReport, Keyword.put(opts, :plan, map))
 	end
 
