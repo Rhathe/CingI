@@ -55,6 +55,13 @@ defmodule Cingi.Outpost do
 		start_link(original: pid, branch_pid: branch_pid)
 	end
 
+	def get_or_create_version_on_branch(pid, branch_pid) do
+		case get_version_on_branch(pid, branch_pid) do
+			nil -> create_version_on_branch(pid, branch_pid)
+			x -> {:ok, x}
+		end
+	end
+
 	def field_agent_data(pid, fa_pid, data) do
 		GenServer.cast(pid, {:field_agent_data, fa_pid, data})
 	end
@@ -98,6 +105,10 @@ defmodule Cingi.Outpost do
 		GenServer.cast(pid, :update_alternates)
 	end
 
+	def update_parent(pid) do
+		GenServer.cast(pid, :update_parent)
+	end
+
 	# Server Callbacks
 
 	def init(opts) do
@@ -107,8 +118,8 @@ defmodule Cingi.Outpost do
 				o = Outpost.get opid
 				%Outpost{
 					name: o.name,
-					parent_pid: o.parent_pid,
 					alternates: o.alternates,
+					parent_pid: o.parent_pid,
 					plan: o.plan,
 					setup_steps: o.setup_steps
 				}
@@ -125,6 +136,7 @@ defmodule Cingi.Outpost do
 			bpid -> Outpost.set_branch(self(), bpid)
 		end
 
+		Outpost.update_parent(self())
 		Outpost.update_alternates(self())
 		{:ok, outpost}
 	end
@@ -159,6 +171,16 @@ defmodule Cingi.Outpost do
 	def handle_cast({:field_agent_data, _fa_pid, data}, outpost) do
 		Branch.outpost_data(outpost.branch_pid, self(), data)
 		{:noreply, outpost}
+	end
+
+	def handle_cast(:update_parent, outpost) do
+		# Parent may not live on same branch, so create version of parent that does
+		{:ok, parent_pid} = case {outpost.parent_pid, outpost.branch_pid} do
+			{nil, _} -> {:ok, nil}
+			{_, nil} -> {:ok, nil}
+			{ppid, bpid} -> Outpost.get_or_create_version_on_branch(ppid, bpid)
+		end
+		{:noreply, %Outpost{outpost | parent_pid: parent_pid}}
 	end
 
 	def handle_cast(:update_alternates, outpost) do

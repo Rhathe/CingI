@@ -169,7 +169,7 @@ defmodule Cingi.Branch do
 		# The parent outpost process is either the outpost of its supermission
 		# or potentially the parent of the outpost that started the mission_report,
 		# as that outpost would be for setting up and needs its parent environnment to do so
-		parent = case mission.supermission_pid do
+		base_outpost = case mission.supermission_pid do
 			nil ->
 				case MissionReport.get(mission.report_pid).outpost_pid do
 					nil -> nil
@@ -182,13 +182,9 @@ defmodule Cingi.Branch do
 		# if so, use that to start initialize a new outpost,
 		# otherwise use an outpost from this mission's supermission,
 		# constructing on this node if necessary
-		{:ok, outpost} = case {Mission.get_outpost_plan(mission_pid), parent} do
+		{:ok, outpost} = case {Mission.get_outpost_plan(mission_pid), base_outpost} do
 			{nil, nil} -> Outpost.start_link(branch_pid: self())
-			{nil, parent} ->
-				case Outpost.get_version_on_branch(parent, self()) do
-					nil -> Outpost.create_version_on_branch(parent, self())
-					x -> {:ok, x}
-				end
+			{nil, base_outpost} -> Outpost.get_or_create_version_on_branch(base_outpost, self())
 			{plan, parent} -> Outpost.start_link(branch_pid: self(), plan: plan, parent_pid: parent)
 		end
 
@@ -254,7 +250,8 @@ defmodule Cingi.Branch do
 					keys = data[:pid] |> Enum.map(&(Mission.get(&1).key)) |> Enum.join("|")
 					split = String.split(data[:data], "\n")
 					split |> Enum.map(&("[#{keys}]    #{&1}"))
-			end |> Enum.map(&(IO.puts &1))
+			end
+			|> Enum.map(&(IO.puts &1))
 		end
 		{:noreply, branch}
 	end
