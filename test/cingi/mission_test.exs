@@ -68,7 +68,7 @@ defmodule CingiMissionTest do
 		mission = Mission.get(pid)
 		assert mission.key == "mission_1"
 		assert mission.cmd == nil
-		assert mission.submissions == ["echo 1", "echo 2"]
+		assert mission.submissions == [{"echo 1", 0}, {"echo 2", 1}]
 	end
 
 	test "constructs with yaml map and map of commands" do

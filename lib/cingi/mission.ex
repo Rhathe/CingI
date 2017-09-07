@@ -6,6 +6,7 @@ defmodule Cingi.Mission do
 
 	defstruct [
 		key: "",
+		name: nil,
 
 		report_pid: nil,
 		prev_mission_pid: nil,
@@ -103,7 +104,7 @@ defmodule Cingi.Mission do
 				_ -> 0
 			end,
 			key: case mission.key do
-				"" -> construct_key(mission.cmd)
+				"" -> construct_key(mission.name || mission.cmd)
 				_ -> mission.key
 			end,
 			skipped: determine_skipped_status(mission),
@@ -132,7 +133,7 @@ defmodule Cingi.Mission do
 
 	defp construct_opts_from_decoded_yaml(opts) do
 		del = &Keyword.delete/2
-		opts = del.(opts, :key) |> del.(:cmd) |> del.(:submissions)
+		opts = opts |> del.(:cmd) |> del.(:submissions)
 		decoded_yaml = opts[:decoded_yaml]
 
 		case decoded_yaml do
@@ -160,7 +161,7 @@ defmodule Cingi.Mission do
 
 	defp construct_map_opts(map) do
 		new_map = [
-			key: construct_key(map["name"]),
+			name: map["name"] || nil,
 			when: map["when"] || nil,
 			input_file: case Map.has_key?(map, "input") do
 				false -> "$IN"
@@ -176,7 +177,7 @@ defmodule Cingi.Mission do
 				fail_fast: Map.get(map, "fail_fast", false) || false # By default parallel missions don't fail fast
 			]
 			is_list(submissions) -> [
-				submissions: submissions,
+				submissions: submissions |> Enum.with_index,
 				fail_fast: Map.get(map, "fail_fast", true) || false # By default sequential missions fail fast
 			]
 			true -> [cmd: submissions]
@@ -310,29 +311,20 @@ defmodule Cingi.Mission do
 
 	def handle_cast({:run_submissions, prev_pid}, mission) do
 		[running, remaining] = case mission.submissions do
-			%{} -> [Enum.map(mission.submissions, &convert_parallel_mission/1), %{}]
-			[a|b] -> [[a], b]
+			%{} -> [Enum.map(mission.submissions, fn({k, v}) -> [decoded_yaml: v, key: k] end), %{}]
+			[{submission, index}|b] -> [[[decoded_yaml: submission, index: index]], b]
 			[] -> [[], []]
 			nil -> [[], nil]
 		end
 
 		sh = mission.submission_holds
 		sh = sh ++ for submission <- running do
-			opts = [decoded_yaml: submission, supermission_pid: self(), prev_mission_pid: prev_pid]
+			opts = submission ++ [supermission_pid: self(), prev_mission_pid: prev_pid]
 			MissionReport.init_mission(mission.report_pid, opts)
 			%{pid: nil, finished: false}
 		end
 
 		{:noreply, %Mission{mission | submissions: remaining, submission_holds: sh}}
-	end
-
-	defp convert_parallel_mission({key, value}) do
-		case value do
-			%{} -> Map.put_new(value, "name", key)
-			[_|_] -> raise "Can't be a list"
-			[] -> raise "Can't be a list"
-			_ -> %{"missions" => value}
-		end
 	end
 
 	#########
@@ -359,25 +351,30 @@ defmodule Cingi.Mission do
 	end
 
 	def handle_call({:get_output, selector}, _from, mission) do
-		output = case selector do
-			# Empty slector means just get normal output
-			nil -> mission.output
+		output =
+			try do
+				case selector do
+					# Empty slector means just get normal output
+					nil -> mission.output
 
-			# String sleector means get submission output with same key
-			"" <> output_key ->
-				mission.submission_holds
-					|> Enum.map(&(&1.pid))
-					|> Enum.map(&Mission.get/1)
-					|> Enum.find(&(&1.key == output_key))
-					|> (fn(s) -> s.output end).()
+					# String sleector means get submission output with same key
+					"" <> output_key ->
+						mission.submission_holds
+							|> Enum.map(&(&1.pid))
+							|> Enum.map(&Mission.get/1)
+							|> Enum.find(&(&1.key == output_key))
+							|> (fn(s) -> s.output end).()
 
-			# Default/integer selector means get submissions at index
-			index ->
-				mission.submission_holds
-					|> Enum.at(index)
-					|> (fn(s) -> Mission.get(s.pid).output end).()
+					# Default/integer selector means get submissions at index
+					index ->
+						mission.submission_holds
+							|> Enum.at(index)
+							|> (fn(s) -> Mission.get(s.pid).output end).()
+				end
+			rescue
+				_ -> []
+			end |> Enum.map(&(&1[:data]))
 
-		end |> Enum.map(&(&1[:data]))
 		{:reply, output, mission}
 	end
 

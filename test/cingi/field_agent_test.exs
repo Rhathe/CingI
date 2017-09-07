@@ -96,7 +96,7 @@ defmodule CingiFieldAgentTest do
 
 		test "killing mission kills submission process", ctx do
 			opid = ctx.outpost_pid
-			{:ok, mpid1} = Mission.start_link [submissions: ["echo 1"]]
+			{:ok, mpid1} = Mission.start_link [submissions: [{"echo 1", 0}]]
 			{:ok, fpid1} = FieldAgent.start_link(mission_pid: mpid1, outpost_pid: opid)
 
 			{:ok, mpid2} = Mission.start_link [cmd: "ncat -l -i 1 19010", supermission_pid: mpid1]
