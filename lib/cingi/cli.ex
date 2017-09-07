@@ -60,6 +60,9 @@ defmodule Cingi.CLI do
 		report_pid = Cingi.Branch.create_report :local_branch, yaml_opts
 		receive_loop = fn(loop) ->
 			receive do
+				{:branch_report_data, data} ->
+					print_output(data, true)
+					loop.(loop)
 				{:branch_outpost_data, data} ->
 					print_output(data, options[:printbranchoutput])
 					loop.(loop)
@@ -122,11 +125,8 @@ defmodule Cingi.CLI do
 		end
 	end
 
-	def print_output(data, nil) do
-		print_output(data, true)
-	end
-
 	def print_output(data, print) do
+		print = print || false
 		case print do
 			false -> :ok
 			true ->
@@ -137,12 +137,20 @@ defmodule Cingi.CLI do
 					|> Enum.map(fn(line) ->
 						keys = case field_agent.node do
 							:nonode@nohost -> []
-							x -> [x]
+							x -> [" #{x} "]
 						end
 
 						keys = keys ++ case data[:pid] do
 							[] -> []
-							[_|_] -> data[:pid] |> Enum.map(&(Cingi.Mission.get(&1).key))
+							[_|_] -> data[:pid]
+								|> Enum.map(fn(pid) ->
+									key = Cingi.Mission.get(pid).key
+									shortened = String.slice(key, 0, 7)
+									case shortened == key do
+										true -> key
+										false -> shortened <> "..."
+									end
+								end)
 						end
 
 						keys = Enum.join(keys, "|")
