@@ -290,12 +290,14 @@ defmodule Cingi.Mission do
 		case new_data do
 			[] -> :ok
 			_ ->
+				pids = [self()] ++ data[:pid]
+				data_without_pid = Keyword.delete(data, :pid)
+				send_data = data_without_pid ++ [pid: pids]
+
 				if mission.supermission_pid do
-					pids = [self()] ++ data[:pid]
-					data_without_pid = Keyword.delete(data, :pid)
-					Mission.send(mission.supermission_pid, data_without_pid ++ [pid: pids])
+					Mission.send(mission.supermission_pid, send_data)
 				else
-					MissionReport.send_data(mission.report_pid, data)
+					MissionReport.send_data(mission.report_pid, send_data)
 				end
 		end
 

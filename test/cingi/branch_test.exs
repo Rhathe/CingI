@@ -35,7 +35,7 @@ defmodule CingiBranchTest do
 		assert length(branch.running_missions) == 0
 		assert length(branch.finished_missions) == 1
 		mission = Helper.check_exit_code(mpid)
-		assert [[data: "1\n", type: :out, timestamp: _, pid: []]] = mission.output
+		assert [[data: "1\n", type: :out, timestamp: _, field_agent_pid: _, pid: []]] = mission.output
 	end
 
 	test "runs missions with outputs" do
@@ -80,7 +80,7 @@ defmodule CingiBranchTest do
 		mission = Mission.get(res[:mission_pid])
 		assert %{output: output, exit_code: nil, submission_holds: [sm1, sm2]} = mission
 		sm1pid = sm1.pid
-		assert [[data: "blah1", type: :out, timestamp: _, pid: [^sm1pid]]] = output
+		assert [[data: "blah1", type: :out, timestamp: _, field_agent_pid: _, pid: [^sm1pid]]] = output
 
 		submission1 = Mission.get(sm1.pid)
 		submission2 = Mission.get(sm2.pid)
@@ -95,8 +95,8 @@ defmodule CingiBranchTest do
 		sm2pid = sm2.pid
 		assert %{output: output, exit_code: 0} = mission
 		assert [
-			[data: "blah1", type: :out, timestamp: _, pid: [^sm1pid]],
-			[data: "blah2", type: :out, timestamp: _, pid: [^sm2pid]]
+			[data: "blah1", type: :out, timestamp: _, field_agent_pid: _, pid: [^sm1pid]],
+			[data: "blah2", type: :out, timestamp: _, field_agent_pid: _, pid: [^sm2pid]]
 		] = output
 
 		submission2 = Mission.get(sm2.pid)
@@ -133,10 +133,10 @@ defmodule CingiBranchTest do
 
 		mission = Helper.check_exit_code(res[:mission_pid])
 		assert %{output: [
-			[data: "blah3", type: :out, timestamp: _, pid: [pid1]],
-			[data: "blah2", type: :out, timestamp: _, pid: [pid2]],
-			[data: "blah4", type: :out, timestamp: _, pid: [pid3]],
-			[data: "blah1", type: :out, timestamp: _, pid: [pid4]]
+			[data: "blah3", type: :out, timestamp: _, field_agent_pid: _, pid: [pid1]],
+			[data: "blah2", type: :out, timestamp: _, field_agent_pid: _, pid: [pid2]],
+			[data: "blah4", type: :out, timestamp: _, field_agent_pid: _, pid: [pid3]],
+			[data: "blah1", type: :out, timestamp: _, field_agent_pid: _, pid: [pid4]]
 		], exit_code: 0} = mission
 
 		pids = mission.submission_holds |> Enum.map(&(&1.pid))

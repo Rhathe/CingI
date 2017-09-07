@@ -22,7 +22,7 @@ defmodule Cingi.CLI do
 
 		set_up_network(min_branch_num, options)
 		wait_for_branches(min_branch_num - 1)
-		start_missions(options[:file])
+		start_missions(options[:file], options)
 	end
 
 	def connect_or_headquarters(host, nil, options) do
@@ -34,25 +34,40 @@ defmodule Cingi.CLI do
 		Process.send({:local_cli, host}, {:branch_connect, self()}, [])
 
 		Node.monitor host, true
-		receive do
-			{:nodedown, _} -> :error
-			:terminate -> :ok
+
+		receive_loop = fn(loop) ->
+			receive do
+				{:branch_outpost_data, data} ->
+					print_output(data, options[:printbranchoutput])
+					loop.(loop)
+				{:nodedown, _} -> :error
+				:terminate -> :ok
+				_ -> loop.(loop)
+			end
 		end
+		receive_loop.(receive_loop)
 	end
 
 	def connect_or_headquarters(_, _, _) do
 		raise "Cannot have both connect_to and min_branch_num options"
 	end
 
-	def start_missions(nil) do
+	def start_missions(nil, _options) do
 	end
 
-	def start_missions(file) do
+	def start_missions(file, options) do
 		yaml_opts = [file: file, cli_pid: self()]
 		report_pid = Cingi.Branch.create_report :local_branch, yaml_opts
-		receive do
-			{:report, ^report_pid} -> Cingi.Headquarters.terminate_branches({:global, :hq})
+		receive_loop = fn(loop) ->
+			receive do
+				{:branch_outpost_data, data} ->
+					print_output(data, options[:printbranchoutput])
+					loop.(loop)
+				{:report, ^report_pid} -> Cingi.Headquarters.terminate_branches({:global, :hq})
+				_ -> loop.(loop)
+			end
 		end
+		receive_loop.(receive_loop)
 	end
 
 	defp parse_args(args) do
@@ -62,6 +77,7 @@ defmodule Cingi.CLI do
 				file: :string,
 				connectto: :string,
 				branchoutput: :boolean,
+				printbranchoutput: :boolean,
 			]
 		)
 		options
@@ -103,6 +119,37 @@ defmodule Cingi.CLI do
 					n -> wait_for_hq(host, n - 1)
 				end
 			_ -> Cingi.Headquarters.get({:global, :hq})
+		end
+	end
+
+	def print_output(data, nil) do
+		print_output(data, true)
+	end
+
+	def print_output(data, print) do
+		case print do
+			false -> :ok
+			true ->
+				field_agent = Cingi.FieldAgent.get(data[:field_agent_pid])
+
+				data[:data]
+					|> String.split("\n")
+					|> Enum.map(fn(line) ->
+						keys = case field_agent.node do
+							:nonode@nohost -> []
+							x -> [x]
+						end
+
+						keys = keys ++ case data[:pid] do
+							[] -> []
+							[_|_] -> data[:pid] |> Enum.map(&(Cingi.Mission.get(&1).key))
+						end
+
+						keys = Enum.join(keys, "|")
+
+						"[#{keys}]    #{line}"
+					end)
+					|> Enum.map(&IO.puts/1)
 		end
 	end
 end

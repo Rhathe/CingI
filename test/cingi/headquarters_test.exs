@@ -61,10 +61,10 @@ defmodule CingiHeadquartersTest do
 
 		mission = Helper.check_exit_code(res[:mission_pid])
 		assert %{output: [
-			[data: "blah3", type: :out, timestamp: _, pid: [pid1]],
-			[data: "blah2", type: :out, timestamp: _, pid: [pid2]],
-			[data: "blah4", type: :out, timestamp: _, pid: [pid3]],
-			[data: "blah1", type: :out, timestamp: _, pid: [pid4]]
+			[data: "blah3", type: :out, timestamp: _, field_agent_pid: _, pid: [pid1]],
+			[data: "blah2", type: :out, timestamp: _, field_agent_pid: _, pid: [pid2]],
+			[data: "blah4", type: :out, timestamp: _, field_agent_pid: _, pid: [pid3]],
+			[data: "blah1", type: :out, timestamp: _, field_agent_pid: _, pid: [pid4]]
 		], exit_code: 0} = mission
 
 		pids = mission.submission_holds |> Enum.map(&(&1.pid))

@@ -15,6 +15,7 @@ defmodule Cingi.FieldAgent do
 	defstruct [
 		mission_pid: nil,
 		outpost_pid: nil,
+		node: nil,
 		stopped: false,
 		proc: nil,
 	]
@@ -61,7 +62,7 @@ defmodule Cingi.FieldAgent do
 			mission.submissions -> Mission.run_submissions(mpid, mission.prev_mission_pid)
 		end
 
-		{:ok, field_agent}
+		{:ok, %FieldAgent{field_agent | node: Node.self}}
 	end
 
 	def handle_call(:get, _from, field_agent) do
@@ -153,7 +154,7 @@ defmodule Cingi.FieldAgent do
 
 	defp add_to_output(field_agent, opts) do
 		time = :os.system_time(:millisecond)
-		data = opts ++ [timestamp: time, pid: []]
+		data = opts ++ [timestamp: time, field_agent_pid: self(), pid: []]
 		Mission.send(field_agent.mission_pid, data)
 		Outpost.field_agent_data(field_agent.outpost_pid, self(), data)
 		{:noreply, field_agent}

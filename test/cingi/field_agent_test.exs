@@ -14,7 +14,7 @@ defmodule CingiFieldAgentTest do
 
 			assert %{
 				cmd: "echo blah",
-				output: [[data: "blah\n", type: :out, timestamp: _, pid: []]],
+				output: [[data: "blah\n", type: :out, timestamp: _, field_agent_pid: _, pid: []]],
 				finished: true,
 				running: false,
 				exit_code: 0,
@@ -28,7 +28,7 @@ defmodule CingiFieldAgentTest do
 
 			assert %{
 				cmd: "echo",
-				output: [[data: "\n", type: :out, timestamp: _, pid: []]],
+				output: [[data: "\n", type: :out, timestamp: _, field_agent_pid: _, pid: []]],
 				finished: true,
 				running: false,
 				exit_code: 0,
@@ -54,7 +54,7 @@ defmodule CingiFieldAgentTest do
 
 			assert %{
 				cmd: "ncat -l -i 1 9000",
-				output: [[data: "blah", type: :out, timestamp: _, pid: []]],
+				output: [[data: "blah", type: :out, timestamp: _, field_agent_pid: _, pid: []]],
 				finished: true,
 				running: false,
 				exit_code: 0,
@@ -69,8 +69,8 @@ defmodule CingiFieldAgentTest do
 			assert %{
 				cmd: "echo blah1 && sleep 0.1 && echo blah2",
 				output: [
-					[data: "blah1\n", type: :out, timestamp: _, pid: []],
-					[data: "blah2\n", type: :out, timestamp: _, pid: []]
+					[data: "blah1\n", type: :out, timestamp: _, field_agent_pid: _, pid: []],
+					[data: "blah2\n", type: :out, timestamp: _, field_agent_pid: _, pid: []]
 				],
 				finished: true,
 				running: false,

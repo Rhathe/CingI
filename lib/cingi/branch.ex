@@ -243,23 +243,16 @@ defmodule Cingi.Branch do
 		{:noreply, branch}
 	end
 
-	def handle_cast({:outpost_data, _outpost_pid, _data}, branch) do
+	def handle_cast({:outpost_data, _outpost_pid, data}, branch) do
 		if (branch.cli_pid) do
-			#IO.puts _data[:data]
+			send branch.cli_pid, {:branch_outpost_data, data}
 		end
 		{:noreply, branch}
 	end
 
 	def handle_cast({:report_data, _report_pid, data}, branch) do
 		if (branch.cli_pid) do
-			case data[:pid] do
-				[] -> [data[:data]]
-				[_|_] ->
-					keys = data[:pid] |> Enum.map(&(Mission.get(&1).key)) |> Enum.join("|")
-					split = String.split(data[:data], "\n")
-					split |> Enum.map(&("[#{keys}]    #{&1}"))
-			end
-			|> Enum.map(&(IO.puts &1))
+			send branch.cli_pid, {:branch_report_data, data}
 		end
 		{:noreply, branch}
 	end
