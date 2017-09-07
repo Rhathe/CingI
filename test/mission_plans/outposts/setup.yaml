@@ -1,5 +1,6 @@
 outpost:
   setup_steps:
+    - echo "top setup"
     - "echo \"top setup TMP_DIR_1: $TMP_DIR_1\""
     - "echo \"top setup TMP_DIR_2: $TMP_DIR_2\""
     - "echo \"top setup TMP_DIR_3: $TMP_DIR_3\""
@@ -13,19 +14,24 @@ outpost:
 missions:
   - "pwd | xargs echo 'top pwd:' "
   - outpost:
+      dir: $SETUP['dir']
       env:
-        TMP_DIR_2: first_override
+        TMP_DIR_2: $SETUP['dir']
+        TMP_DIR_3: first_override
       setup_steps:
+        - echo "middle setup"
         - "pwd | xargs echo 'middle setup pwd:' "
         - "echo \"echo inside_tmp_dir\" > tmpecho.sh"
         - "echo \"middle setup TMP_DIR_1: $TMP_DIR_1\""
         - "echo \"middle setup TMP_DIR_2: $TMP_DIR_2\""
         - "echo \"middle setup TMP_DIR_3: $TMP_DIR_3\""
+        - pwd | xargs bash tmpdir.sh
     missions:
       - outpost:
           env:
             TMP_DIR_3: second_override
           setup_steps:
+            - echo "bottom setup"
             - "pwd | xargs echo 'bottom setup pwd:' "
             - "echo \"bottom setup TMP_DIR_1: $TMP_DIR_1\""
             - "echo \"bottom setup TMP_DIR_2: $TMP_DIR_2\""
@@ -39,9 +45,16 @@ missions:
       - "echo \"middle TMP_DIR_1: $TMP_DIR_1\""
       - "echo \"middle TMP_DIR_2: $TMP_DIR_2\""
       - "echo \"middle TMP_DIR_3: $TMP_DIR_3\""
+
+      # Remove tmp files and dir
+      - "rm \"$TMP_DIR_2/tmpdir.sh\""
+      - "rmdir \"$TMP_DIR_2\""
   - bash tmpecho.sh
   - "echo \"top TMP_DIR_1: $TMP_DIR_1\""
   - "echo \"top TMP_DIR_2: $TMP_DIR_2\""
   - "echo \"top TMP_DIR_3: $TMP_DIR_3\""
+
+  # Remove tmp files and dir
   - "rm \"$TMP_DIR_1/tmpecho.sh\""
+  - "rm \"$TMP_DIR_1/tmpdir.sh\""
   - "rmdir \"$TMP_DIR_1\""

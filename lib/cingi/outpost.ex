@@ -198,9 +198,10 @@ defmodule Cingi.Outpost do
 		outpost = case outpost.setting_up do
 			true -> outpost
 			false ->
-				case outpost.setup_steps do
-					n when n in [nil, []] -> Outpost.report_has_finished(self(), nil, nil)
-					setup_steps ->
+				case {outpost.setup_steps, outpost.parent_pid} do
+					{nil, nil} -> Outpost.report_has_finished(self(), nil, nil)
+					{setup_steps, _} ->
+						setup_steps = setup_steps || [":"]
 						yaml_opts = [map: %{"missions" => setup_steps}, outpost_pid: self()]
 						Branch.create_report outpost.branch_pid, yaml_opts
 				end
