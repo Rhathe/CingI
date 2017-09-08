@@ -138,20 +138,7 @@ defmodule Cingi.Outpost do
 	end
 
 	def handle_call({:outpost_on_branch, branch_pid}, _from, outpost) do
-		self_pid = self()
-		alternate = Agent.get(outpost.alternates, &(&1))
-			|> Enum.find(fn(pid) ->
-				# Already have output, prevent recursion
-				tmp_outpost = case pid do
-					^self_pid -> outpost
-					_ -> Outpost.get(pid)
-				end
-
-				case tmp_outpost.branch_pid do
-					^branch_pid -> tmp_outpost
-					_ -> nil
-				end
-			end)
+		alternate = Agent.get(outpost.alternates, &(&1))[branch_pid]
 		{:reply, alternate, outpost}
 	end
 
@@ -177,12 +164,12 @@ defmodule Cingi.Outpost do
 
 	def handle_cast(:update_alternates, outpost) do
 		{:ok, alternates} = case outpost.alternates do
-			nil -> Agent.start_link fn -> [] end
+			nil -> Agent.start_link fn -> %{} end
 			x -> {:ok, x}
 		end
 
 		self_pid = self()
-		Agent.update(alternates, &(&1 ++ [self_pid]))
+		Agent.update(alternates, &(Map.put(&1, outpost.branch_pid, self_pid)))
 
 		{:noreply, %Outpost{outpost | alternates: alternates}}
 	end
