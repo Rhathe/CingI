@@ -1,0 +1,14 @@
+mission_plan_templates:
+  one:
+    mission_plan_templates:
+      two:
+        missions: echo onetwo
+    missions:
+      - echo one
+      - extend_mission_plan: two
+      - extend_mission_plan: three
+  two:
+    missions: echo two
+  three:
+    missions: echo three
+extend_mission_plan: one

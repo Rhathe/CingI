@@ -3,6 +3,8 @@ defmodule CingiMissionTest do
 	alias Cingi.Mission
 	doctest Mission
 
+	import ExUnit.CaptureIO
+
 	test "creates mission" do
 		pid = mission_with_cmd("echo")
 		assert %{
@@ -14,9 +16,19 @@ defmodule CingiMissionTest do
 		} = Mission.get(pid)
 	end
 
-	test "creates empty mission fails" do
-		Process.flag :trap_exit, true
-		{:error, {%RuntimeError{message: "Must have cmd or submissions, got nil"}, _}}  = Mission.start_link([])
+	test "creates empty mission with an easy exit command" do
+		execute = fn ->
+			{:ok, pid} = Mission.start_link([])
+			assert %{
+				cmd: "exit 199",
+				output: [],
+				input_file: "$IN",
+				submissions_num: 0,
+				running: false,
+			} = Mission.get(pid)
+		end
+
+		assert capture_io(:stderr, execute) =~ "Must have cmd or submissions, got nil"
 	end
 
 	test "constructs with yaml command" do

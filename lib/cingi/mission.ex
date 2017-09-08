@@ -15,7 +15,10 @@ defmodule Cingi.Mission do
 		submission_holds: [],
 		field_agent_pid: nil,
 
+		mission_plan_templates: %{},
 		mission_plan: nil,
+		original_mission_plan: nil,
+
 		cmd: nil,
 		submissions: nil,
 		submissions_num: nil,
@@ -78,6 +81,14 @@ defmodule Cingi.Mission do
 		GenServer.call(pid, :get_outpost_plan)
 	end
 
+	def get_mission_plan_template(pid, key) do
+		case {pid, key} do
+			{nil, _} -> %{}
+			{_, nil} -> %{}
+			_ -> GenServer.call(pid, {:get_mission_plan_template, key})
+		end
+	end
+
 	def set_as_running(pid, field_agent_pid) do
 		GenServer.call(pid, {:set_as_running, field_agent_pid})
 	end
@@ -119,10 +130,11 @@ defmodule Cingi.Mission do
 			),
 		}
 
-		case mission do
+		mission = case mission do
 			%{cmd: nil, submissions: nil} ->
-				raise "Must have cmd or submissions, got #{inspect(opts[:mission_plan])}"
-			_ -> :ok
+				IO.puts :stderr, "Must have cmd or submissions, got #{inspect(opts[:mission_plan])}"
+				%Mission{mission | cmd: "exit 199"}
+			_ -> mission
 		end
 
 		mission_pid = mission.supermission_pid
@@ -149,9 +161,10 @@ defmodule Cingi.Mission do
 		map = opts[:mission_plan]
 		keys = Map.keys(map)
 
+		opts = Keyword.delete(opts, :mission_plan)
 		opts ++ case length(keys) do
-			0 -> raise "Empty map?"
-			_ -> construct_map_opts(map)
+			0 -> map
+			_ -> construct_map_opts(map, opts[:supermission_pid])
 		end
 	end
 
@@ -162,10 +175,27 @@ defmodule Cingi.Mission do
 		String.downcase(name)
 	end
 
-	defp construct_map_opts(map) do
+	defp construct_map_opts(old_map, supermission_pid) do
+		template = case old_map["extend_mission_plan"] do
+			%{"file" => _} -> %{}
+			key ->
+				key = case key do
+					%{"key" => key} -> key
+					key -> key
+				end
+
+				templates = Map.get(old_map, "mission_plan_templates")
+				get_mission_plan_template(:key, templates, key, supermission_pid)
+		end
+
+		map = Map.merge(template, old_map) |> Map.delete("extend_mission_plan")
+
 		new_map = [
 			name: map["name"] || nil,
 			when: map["when"] || nil,
+			original_mission_plan: old_map,
+			mission_plan: map,
+			mission_plan_templates: map["mission_plan_templates"] || nil,
 			input_file: case Map.has_key?(map, "input") do
 				false -> "$IN"
 				true -> map["input"]
@@ -184,6 +214,14 @@ defmodule Cingi.Mission do
 				fail_fast: Map.get(map, "fail_fast", true) || false # By default sequential missions fail fast
 			]
 			true -> [cmd: submissions]
+		end
+	end
+
+	def get_mission_plan_template(:key, templates, key, supermission_pid) do
+		templates = templates || %{}
+		case Map.has_key?(templates, key) do
+			true -> templates[key]
+			false -> Mission.get_mission_plan_template(supermission_pid, key)
 		end
 	end
 
@@ -394,6 +432,11 @@ defmodule Cingi.Mission do
 			_ -> nil
 		end
 		{:reply, plan, mission}
+	end
+
+	def handle_call({:get_mission_plan_template, key}, _from, mission) do
+		template = get_mission_plan_template(:key, mission.mission_plan_templates, key, mission.supermission_pid)
+		{:reply, template, mission}
 	end
 
 	defp update_in_list(list, filter, update) do

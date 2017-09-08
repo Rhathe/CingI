@@ -1,6 +1,6 @@
 MIN_BRANCHES = 2
 BRANCH_NAME = two
-FILE = --file test/mission_plans/outposts/multinode.yaml
+FILE = --file test/mission_plans/extends.yaml
 FORCE:
 
 deps: FORCE

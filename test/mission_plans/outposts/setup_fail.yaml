@@ -1,0 +1,5 @@
+outpost:
+  setup_steps:
+    - exit 7
+missions:
+  - echo "should not have succeeded"
