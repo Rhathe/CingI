@@ -61,6 +61,10 @@ defmodule Cingi.Mission do
 		GenServer.cast(pid, {:run_submissions, prev_pid})
 	end
 
+	def construct_from_plan(pid) do
+		GenServer.cast(pid, :construct_from_plan)
+	end
+
 	def pause(pid) do
 		GenServer.call(pid, :pause)
 	end
@@ -103,12 +107,24 @@ defmodule Cingi.Mission do
 	# Server Callbacks
 
 	def init(opts) do
-		opts = case opts[:mission_plan] do
-			nil -> opts
-			_ -> construct_opts_from_mission_plan(opts)
+		opts = opts ++ [original_mission_plan: opts[:mission_plan]]
+		mission = struct(Mission, opts)
+		Mission.construct_from_plan(self())
+		{:ok, mission}
+	end
+
+	#########
+	# CASTS #
+	#########
+
+	def handle_cast(:construct_from_plan, mission) do
+		new_plan = case mission.mission_plan do
+			nil -> %{}
+			_ -> construct_new_mission_plan(mission)
 		end
 
-		mission = struct(Mission, opts)
+		mission = Map.merge(mission, new_plan)
+
 		mission = %Mission{mission |
 			submissions_num: case mission.submissions do
 				%{} -> length(Map.keys(mission.submissions))
@@ -132,7 +148,7 @@ defmodule Cingi.Mission do
 
 		mission = case mission do
 			%{cmd: nil, submissions: nil} ->
-				IO.puts :stderr, "Must have cmd or submissions, got #{inspect(opts[:mission_plan])}"
+				IO.puts :stderr, "Must have cmd or submissions, got #{inspect(mission.mission_plan)}"
 				%Mission{mission | cmd: "exit 199"}
 			_ -> mission
 		end
@@ -141,93 +157,8 @@ defmodule Cingi.Mission do
 		if mission_pid do Mission.initialized_submission(mission_pid, self()) end
 		MissionReport.initialized_mission(mission.report_pid, self())
 
-		{:ok, mission}
+		{:noreply, mission}
 	end
-
-	defp construct_opts_from_mission_plan(opts) do
-		del = &Keyword.delete/2
-		opts = opts |> del.(:cmd) |> del.(:submissions)
-		mission_plan = opts[:mission_plan]
-
-		case mission_plan do
-			%{} -> construct_opts_from_map(opts)
-			[] -> opts
-			[_|_] -> opts ++ [submissions: mission_plan |> Enum.with_index]
-			_ -> opts ++ [cmd: mission_plan]
-		end
-	end
-
-	defp construct_opts_from_map(opts) do
-		map = opts[:mission_plan]
-		keys = Map.keys(map)
-
-		opts = Keyword.delete(opts, :mission_plan)
-		opts ++ case length(keys) do
-			0 -> map
-			_ -> construct_map_opts(map, opts[:supermission_pid])
-		end
-	end
-
-	defp construct_key(name) do
-		name = name || ""
-		name = String.replace(name, ~r/ /, "_")
-		name = String.replace(name, ~r/[^_a-zA-Z0-9]/, "")
-		String.downcase(name)
-	end
-
-	defp construct_map_opts(old_map, supermission_pid) do
-		template = case old_map["extend_mission_plan"] do
-			%{"file" => _} -> %{}
-			key ->
-				key = case key do
-					%{"key" => key} -> key
-					key -> key
-				end
-
-				templates = Map.get(old_map, "mission_plan_templates")
-				get_mission_plan_template(:key, templates, key, supermission_pid)
-		end
-
-		map = Map.merge(template, old_map) |> Map.delete("extend_mission_plan")
-
-		new_map = [
-			name: map["name"] || nil,
-			when: map["when"] || nil,
-			original_mission_plan: old_map,
-			mission_plan: map,
-			mission_plan_templates: map["mission_plan_templates"] || nil,
-			input_file: case Map.has_key?(map, "input") do
-				false -> "$IN"
-				true -> map["input"]
-			end,
-			output_filter: map["output"],
-		]
-
-		submissions = map["missions"]
-		new_map ++ cond do
-			is_map(submissions) -> [
-				submissions: submissions,
-				fail_fast: Map.get(map, "fail_fast", false) || false # By default parallel missions don't fail fast
-			]
-			is_list(submissions) -> [
-				submissions: submissions |> Enum.with_index,
-				fail_fast: Map.get(map, "fail_fast", true) || false # By default sequential missions fail fast
-			]
-			true -> [cmd: submissions]
-		end
-	end
-
-	def get_mission_plan_template(:key, templates, key, supermission_pid) do
-		templates = templates || %{}
-		case Map.has_key?(templates, key) do
-			true -> templates[key]
-			false -> Mission.get_mission_plan_template(supermission_pid, key)
-		end
-	end
-
-	#########
-	# CASTS #
-	#########
 
 	def handle_cast({:finished, result, prev_mpid}, mission) do
 		# Indicate that prev_mpid has finished
@@ -439,6 +370,10 @@ defmodule Cingi.Mission do
 		{:reply, template, mission}
 	end
 
+	##################
+	# MISC FUNCTIONS #
+	##################
+
 	defp update_in_list(list, filter, update) do
 		case list do
 			[] -> []
@@ -490,4 +425,80 @@ defmodule Cingi.Mission do
 			end)
 			|> Enum.filter(&(&1))
 	end
+
+	defp construct_new_mission_plan(mission) do
+		plan = mission.mission_plan
+		case plan do
+			%{} -> construct_plan_from_map(plan, mission)
+			[] -> %{}
+			[_|_] -> %{submissions: plan |> Enum.with_index}
+			_ -> %{cmd: plan}
+		end
+	end
+
+	defp construct_key(name) do
+		name = name || ""
+		name = String.replace(name, ~r/ /, "_")
+		name = String.replace(name, ~r/[^_a-zA-Z0-9]/, "")
+		String.downcase(name)
+	end
+
+	defp construct_plan_from_map(plan, mission) do
+		keys = Map.keys(plan)
+		Map.merge(plan, case length(keys) do
+			0 -> %{}
+			_ -> construct_plan_from_map(:has_keys, plan, mission)
+		end)
+	end
+
+	defp construct_plan_from_map(:has_keys, plan, mission) do
+		template = case plan["extend_mission_plan"] do
+			%{"file" => _} -> %{}
+			key ->
+				key = case key do
+					%{"key" => key} -> key
+					key -> key
+				end
+
+				templates = plan["mission_plan_templates"]
+				get_mission_plan_template(:key, templates, key, mission.supermission_pid)
+		end
+
+		plan = Map.merge(template, plan) |> Map.delete("extend_mission_plan")
+		submissions = plan["missions"]
+
+		Map.merge(
+			%{
+				name: plan["name"] || nil,
+				when: plan["when"] || nil,
+				mission_plan: plan,
+				mission_plan_templates: plan["mission_plan_templates"] || nil,
+				input_file: case Map.has_key?(plan, "input") do
+					false -> "$IN"
+					true -> plan["input"]
+				end,
+				output_filter: plan["output"],
+			},
+			cond do
+				is_map(submissions) -> %{
+					submissions: submissions,
+					fail_fast: Map.get(plan, "fail_fast", false) || false # By default parallel missions don't fail fast
+				}
+				is_list(submissions) -> %{
+					submissions: submissions |> Enum.with_index,
+					fail_fast: Map.get(plan, "fail_fast", true) || false # By default sequential missions fail fast
+				}
+				true -> %{cmd: submissions}
+			end
+		)
+	end
+
+	def get_mission_plan_template(:key, templates, key, supermission_pid) do
+		templates = templates || %{}
+		case Map.has_key?(templates, key) do
+			true -> templates[key]
+			false -> Mission.get_mission_plan_template(supermission_pid, key)
+		end
+	end
+
 end
