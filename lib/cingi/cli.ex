@@ -29,6 +29,19 @@ defmodule Cingi.CLI do
 		set_up_network(true, options)
 		host = String.to_atom host
 		wait_for_hq(host)
+
+		cond do
+			options[:file] -> connect_to_hq(:file, options[:file], host)
+			options[:closehq] -> connect_to_hq(:closehq, host)
+			true -> connect_to_hq(:branch, host, options)
+		end
+	end
+
+	def connect_or_headquarters(_, _, _) do
+		raise "Cannot have both connect_to and min_branch_num options"
+	end
+
+	def connect_to_hq(:branch, host, options) do
 		Cingi.Headquarters.link_branch({:global, :hq}, :local_branch)
 		IO.puts "Connected local branch to global headquarters"
 		Process.send({:local_cli, host}, {:branch_connect, self()}, [])
@@ -48,16 +61,24 @@ defmodule Cingi.CLI do
 		receive_loop.(receive_loop)
 	end
 
-	def connect_or_headquarters(_, _, _) do
-		raise "Cannot have both connect_to and min_branch_num options"
+	def connect_to_hq(:file, file, host) do
+		yaml_opts = [file: file, cli_pid: self()]
+		Cingi.Branch.create_report :local_branch, yaml_opts
+		:rpc.call(host, Cingi.Branch, :create_report, [:local_branch, yaml_opts])
 	end
 
-	def start_missions(nil, _options) do
+	def connect_to_hq(:closehq, host) do
+		Process.send({:local_cli, host}, :terminate, [])
 	end
 
 	def start_missions(file, options) do
-		yaml_opts = [file: file, cli_pid: self()]
-		report_pid = Cingi.Branch.create_report :local_branch, yaml_opts
+		report_pid = case file do
+			nil -> nil
+			file ->
+				yaml_opts = [file: file, cli_pid: self()]
+				Cingi.Branch.create_report :local_branch, yaml_opts
+		end
+
 		receive_loop = fn(loop) ->
 			receive do
 				{:branch_report_data, data} ->
@@ -70,6 +91,8 @@ defmodule Cingi.CLI do
 					Cingi.Headquarters.terminate_branches({:global, :hq})
 					exit_code = Cingi.Mission.get(mission_pid).exit_code
 					if exit_code != 0 do System.halt(exit_code) end
+				:terminate ->
+					Cingi.Headquarters.terminate_branches({:global, :hq})
 				_ -> loop.(loop)
 			end
 		end
@@ -84,6 +107,7 @@ defmodule Cingi.CLI do
 				connectto: :string,
 				branchoutput: :boolean,
 				printbranchoutput: :boolean,
+				closehq: :boolean,
 			]
 		)
 		options
