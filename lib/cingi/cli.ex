@@ -66,7 +66,10 @@ defmodule Cingi.CLI do
 				{:branch_outpost_data, data} ->
 					print_output(data, options[:printbranchoutput])
 					loop.(loop)
-				{:report, ^report_pid} -> Cingi.Headquarters.terminate_branches({:global, :hq})
+				{:report, ^report_pid, mission_pid} ->
+					Cingi.Headquarters.terminate_branches({:global, :hq})
+					exit_code = Cingi.Mission.get(mission_pid).exit_code
+					if exit_code != 0 do System.halt(exit_code) end
 				_ -> loop.(loop)
 			end
 		end

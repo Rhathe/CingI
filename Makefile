@@ -19,7 +19,7 @@ build-cli:
 
 test-cli:
 	make build-cli
-	./cingi --file test/mission_plans/outposts/multinode.yaml
+	./cingi --file test/mission_plans/outposts/multinode.yaml; echo "exited with $$?"
 
 test-two-cli:
 	make test-hq-cli &
