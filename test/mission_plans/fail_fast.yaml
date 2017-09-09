@@ -1,0 +1,13 @@
+fail_fast: true
+missions:
+  one:
+    fail_fast: false
+    missions:
+      three:
+        - sleep 1
+        - echo onethree
+      four: sleep 1
+  two:
+    - echo two
+    - exit 5
+  five: sleep 1
