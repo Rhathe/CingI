@@ -5,6 +5,7 @@ defmodule Cingi.Mission do
 	use GenServer
 
 	defstruct [
+		pid: nil,
 		key: "",
 		index: nil,
 		name: nil,
@@ -27,7 +28,6 @@ defmodule Cingi.Mission do
 		output_filter: [], # Don't filter anything by default
 		output: [],
 
-		listen_for_api: false, # Enable to listen in the output for any cingi api calls
 		output_with_stderr: false, # Stderr will be printed to ouput if false, redirected to output if true
 		fail_fast: true, # fail_fast true by default, but if parallel will default to false
 		skipped: false,
@@ -53,16 +53,20 @@ defmodule Cingi.Mission do
 		GenServer.cast(pid, {:init_submission, submission_pid})
 	end
 
-	def send_result(pid, result, prev_mpid) do
-		GenServer.cast(pid, {:finished, result, prev_mpid})
+	def send_result(pid, result, finished_mpid) do
+		GenServer.cast(pid, {:finished, result, finished_mpid})
 	end
 
 	def run_submissions(pid, prev_pid \\ nil) do
 		GenServer.cast(pid, {:run_submissions, prev_pid})
 	end
 
-	def construct_from_plan(pid) do
-		GenServer.cast(pid, :construct_from_plan)
+	def construct_from_plan(pid, new_plan) do
+		GenServer.cast(pid, {:construct_from_plan, new_plan})
+	end
+
+	def stop(pid) do
+		GenServer.cast(pid, :stop)
 	end
 
 	def pause(pid) do
@@ -107,9 +111,11 @@ defmodule Cingi.Mission do
 	# Server Callbacks
 
 	def init(opts) do
-		opts = opts ++ [original_mission_plan: opts[:mission_plan]]
+		opts = opts ++ [
+			pid: self(),
+			original_mission_plan: opts[:mission_plan],
+		]
 		mission = struct(Mission, opts)
-		Mission.construct_from_plan(self())
 		{:ok, mission}
 	end
 
@@ -117,14 +123,8 @@ defmodule Cingi.Mission do
 	# CASTS #
 	#########
 
-	def handle_cast(:construct_from_plan, mission) do
-		new_plan = case mission.mission_plan do
-			nil -> %{}
-			_ -> construct_new_mission_plan(mission)
-		end
-
+	def handle_cast({:construct_from_plan, new_plan}, mission) do
 		mission = Map.merge(mission, new_plan)
-
 		mission = %Mission{mission |
 			submissions_num: case mission.submissions do
 				%{} -> length(Map.keys(mission.submissions))
@@ -160,40 +160,43 @@ defmodule Cingi.Mission do
 		{:noreply, mission}
 	end
 
-	def handle_cast({:finished, result, prev_mpid}, mission) do
-		# Indicate that prev_mpid has finished
-		sh = update_in_list(
+	def handle_cast({:finished, result, finished_mpid}, mission) do
+		# Indicate that finished_mpid has finished
+		submission_holds = update_in_list(
 			mission.submission_holds,
-			fn({h, _}) -> h.pid == prev_mpid end,
+			fn({h, _}) -> h.pid == finished_mpid end,
 			fn(h) -> Map.replace(h, :finished, true) end
 		)
 
-		exit_codes = sh
-			|> Enum.map(&(Mission.get(&1.pid)))
+		# Submission might not have initialized yet, filter out nil
+		sub_pids = submission_holds
+			|> Enum.map(&(&1.pid))
+			|> Enum.filter(&(&1))
+
+		exit_codes = sub_pids
+			|> Enum.map(&(Mission.get(&1)))
 			|> Enum.filter(&(&1.finished))
 			|> Enum.map(&(&1.exit_code))
 
 		# Check if a failure should trigger a fail_fast behavior
-		check = length(exit_codes) > 0
-			and Enum.max(exit_codes) > 0
-			and mission.fail_fast
+		check =
+			self() == finished_mpid or (
+				length(exit_codes) > 0
+				and Enum.max(exit_codes) > 0
+				and mission.fail_fast
+			)
 
-		# If a fail_fast situation is warranted,
-		# Send kill signal to all submissions
-		if (check) do
-			sh
-				|> Enum.map(&(Mission.get(&1.pid)))
-				|> Enum.map(&(FieldAgent.stop(&1.field_agent_pid)))
-		end
+		# If mission already finished, do nothing
+		if check do Enum.map(sub_pids, &Mission.stop/1) end
 
 		# Boolean to check if more submissions need to run
-		more_submissions = not mission.skipped
+		more_submissions? = not mission.skipped
 			and not check
 			and (length(exit_codes) != mission.submissions_num)
 
 		exit_code = cond do
 			length(exit_codes) == 0 -> result.status
-			more_submissions -> nil
+			more_submissions? -> nil
 
 			# Get last exit code if missions are sequential
 			is_list(mission.submissions) ->
@@ -214,23 +217,22 @@ defmodule Cingi.Mission do
 
 		# If submissions have not finished then more should be queued up
 		# Else tell the field agent that the mission is finished
-		[finished, running] = cond do
-			more_submissions ->
-				Mission.run_submissions(self(), prev_mpid)
-				[false, true]
+		{finished, running} = cond do
 			mission.finished ->
-				# If mission already finished, do nothing
-				[true, false]
+				{true, false}
+			more_submissions? ->
+				Mission.run_submissions(self(), finished_mpid)
+				{false, true}
 			true ->
 				FieldAgent.mission_has_finished(mission.field_agent_pid, result)
-				[true, false]
+				{true, false}
 		end
 
 		{:noreply, %Mission{mission |
 			exit_code: exit_code,
 			finished: finished,
 			running: running,
-			submission_holds: sh,
+			submission_holds: submission_holds,
 		}}
 	end
 
@@ -280,15 +282,17 @@ defmodule Cingi.Mission do
 			fn(h) -> Map.replace(h, :pid, pid) end
 		)
 
+		# Send stop message
+		if (mission.finished) do Mission.stop(pid) end
 		{:noreply, %Mission{mission | submission_holds: sh}}
 	end
 
 	def handle_cast({:run_submissions, prev_pid}, mission) do
-		[running, remaining] = case mission.submissions do
-			%{} -> [Enum.map(mission.submissions, fn({k, v}) -> [mission_plan: v, key: k] end), %{}]
-			[{submission, index}|b] -> [[[mission_plan: submission, index: index]], b]
-			[] -> [[], []]
-			nil -> [[], nil]
+		{running, remaining} = case mission.submissions do
+			%{} -> {Enum.map(mission.submissions, fn({k, v}) -> [mission_plan: v, key: k] end), %{}}
+			[{submission, index}|b] -> {[[mission_plan: submission, index: index]], b}
+			[] -> {[], []}
+			nil -> {[], nil}
 		end
 
 		sh = mission.submission_holds
@@ -299,6 +303,18 @@ defmodule Cingi.Mission do
 		end
 
 		{:noreply, %Mission{mission | submissions: remaining, submission_holds: sh}}
+	end
+
+	def handle_cast(:stop, mission) do
+		cond do
+			mission.cmd -> FieldAgent.stop(mission.field_agent_pid)
+			mission.submissions ->
+				mission.submission_holds
+					|> Enum.map(&(&1.pid))
+					|> Enum.filter(&(&1))
+					|> Enum.map(&Mission.stop/1)
+		end
+		{:noreply, %Mission{mission | fail_fast: true}}
 	end
 
 	#########
@@ -358,6 +374,9 @@ defmodule Cingi.Mission do
 	end
 
 	def handle_call(:get_outpost_plan, _from, mission) do
+		# FIXME: Currently does not work correctly on edge case
+		# where mission extends another mission
+		# and the mission_template defines an outpost plan
 		plan = case mission.mission_plan do
 			%{"outpost" => plan} -> plan
 			_ -> nil
@@ -366,7 +385,11 @@ defmodule Cingi.Mission do
 	end
 
 	def handle_call({:get_mission_plan_template, key}, _from, mission) do
-		template = get_mission_plan_template(:key, mission.mission_plan_templates, key, mission.supermission_pid)
+		templates = mission.mission_plan_templates || %{}
+		template = case Map.has_key?(templates, key) do
+			true -> templates[key]
+			false -> Mission.get_mission_plan_template(mission.supermission_pid, key)
+		end
 		{:reply, template, mission}
 	end
 
@@ -378,12 +401,16 @@ defmodule Cingi.Mission do
 		case list do
 			[] -> []
 			_ ->
-				{el, index} = list
+				found = list
 					|> Enum.with_index
 					|> Enum.find(filter)
 
-				el = update.(el)
-				List.replace_at(list, index, el)
+				case found do
+					nil -> list
+					{el, index} ->
+						el = update.(el)
+						List.replace_at(list, index, el)
+				end
 		end
 	end
 
@@ -426,79 +453,10 @@ defmodule Cingi.Mission do
 			|> Enum.filter(&(&1))
 	end
 
-	defp construct_new_mission_plan(mission) do
-		plan = mission.mission_plan
-		case plan do
-			%{} -> construct_plan_from_map(plan, mission)
-			[] -> %{}
-			[_|_] -> %{submissions: plan |> Enum.with_index}
-			_ -> %{cmd: plan}
-		end
-	end
-
 	defp construct_key(name) do
 		name = name || ""
 		name = String.replace(name, ~r/ /, "_")
 		name = String.replace(name, ~r/[^_a-zA-Z0-9]/, "")
 		String.downcase(name)
 	end
-
-	defp construct_plan_from_map(plan, mission) do
-		keys = Map.keys(plan)
-		Map.merge(plan, case length(keys) do
-			0 -> %{}
-			_ -> construct_plan_from_map(:has_keys, plan, mission)
-		end)
-	end
-
-	defp construct_plan_from_map(:has_keys, plan, mission) do
-		template = case plan["extend_mission_plan"] do
-			%{"file" => _} -> %{}
-			key ->
-				key = case key do
-					%{"key" => key} -> key
-					key -> key
-				end
-
-				templates = plan["mission_plan_templates"]
-				get_mission_plan_template(:key, templates, key, mission.supermission_pid)
-		end
-
-		plan = Map.merge(template, plan) |> Map.delete("extend_mission_plan")
-		submissions = plan["missions"]
-
-		Map.merge(
-			%{
-				name: plan["name"] || nil,
-				when: plan["when"] || nil,
-				mission_plan: plan,
-				mission_plan_templates: plan["mission_plan_templates"] || nil,
-				input_file: case Map.has_key?(plan, "input") do
-					false -> "$IN"
-					true -> plan["input"]
-				end,
-				output_filter: plan["output"],
-			},
-			cond do
-				is_map(submissions) -> %{
-					submissions: submissions,
-					fail_fast: Map.get(plan, "fail_fast", false) || false # By default parallel missions don't fail fast
-				}
-				is_list(submissions) -> %{
-					submissions: submissions |> Enum.with_index,
-					fail_fast: Map.get(plan, "fail_fast", true) || false # By default sequential missions fail fast
-				}
-				true -> %{cmd: submissions}
-			end
-		)
-	end
-
-	def get_mission_plan_template(:key, templates, key, supermission_pid) do
-		templates = templates || %{}
-		case Map.has_key?(templates, key) do
-			true -> templates[key]
-			false -> Mission.get_mission_plan_template(supermission_pid, key)
-		end
-	end
-
 end

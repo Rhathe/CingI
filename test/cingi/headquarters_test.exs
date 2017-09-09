@@ -4,10 +4,11 @@ defmodule CingiHeadquartersTest do
 	alias Cingi.Branch
 	doctest Headquarters
 
-	test "creating mission report queued mission" do
+	test "creating mission report queued mission, but no plan yet" do
 		res = Helper.create_mission_report([string: "missions: echo 1"])
 		assert length(Headquarters.get(res[:hq_pid]).queued_missions) == 1
-		assert res[:mission].cmd == "echo 1"
+		assert nil == res[:mission].cmd
+		assert nil == res[:mission].submissions
 	end
 
 	test "can resume" do

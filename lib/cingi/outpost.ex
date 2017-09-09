@@ -176,7 +176,8 @@ defmodule Cingi.Outpost do
 	end
 
 	def handle_cast({:run_mission, mission}, outpost) do
-		FieldAgent.start_link(mission_pid: mission, outpost_pid: self())
+		{:ok, fa_pid} = FieldAgent.start_link(mission_pid: mission, outpost_pid: self())
+		FieldAgent.run_mission(fa_pid)
 		{:noreply, %Outpost{outpost | missions: outpost.missions ++ [mission]}}
 	end
 
@@ -214,7 +215,7 @@ defmodule Cingi.Outpost do
 				FieldAgent.run_bash_process fa_pid
 				outpost
 			false ->
-				Outpost.setup_with_steps(self())
+				Outpost.setup_with_steps self()
 				queue = outpost.queued_field_agents ++ [fa_pid]
 				%Outpost{outpost | queued_field_agents: queue}
 		end
@@ -283,7 +284,7 @@ defmodule Cingi.Outpost do
 			setting_up: false,
 			setup_failed: setup_failed,
 			queued_field_agents: [],
-			dir: dir,
+			dir: dir || ".",
 			env: env,
 		}}
 	end

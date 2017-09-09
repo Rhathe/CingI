@@ -16,7 +16,6 @@ defmodule Cingi.FieldAgent do
 		mission_pid: nil,
 		outpost_pid: nil,
 		node: nil,
-		stopped: false,
 		proc: nil,
 	]
 
@@ -34,12 +33,16 @@ defmodule Cingi.FieldAgent do
 		GenServer.cast(pid, :stop)
 	end
 
+	def run_mission(pid) do
+		GenServer.cast(pid, :run_mission)
+	end
+
 	def run_bash_process(pid) do
 		GenServer.cast(pid, :run_bash_process)
 	end
 
-	def send_result(pid, result, prev_mpid \\ nil) do
-		GenServer.cast(pid, {:result, result, prev_mpid})
+	def send_result(pid, result, finished_mpid) do
+		GenServer.cast(pid, {:result, result, finished_mpid})
 	end
 
 	def mission_has_finished(pid, result) do
@@ -51,16 +54,15 @@ defmodule Cingi.FieldAgent do
 	def init(opts) do
 		field_agent = struct(FieldAgent, opts)
 		mpid = field_agent.mission_pid
-		mission = Mission.get(mpid)
-
 		Mission.set_as_running(mpid, self())
-		Outpost.mission_has_run(field_agent.outpost_pid, mpid)
 
-		cond do
-			mission.skipped -> FieldAgent.send_result(self(), %{status: nil})
-			mission.cmd -> Outpost.queue_field_agent_for_bash(field_agent.outpost_pid, self())
-			mission.submissions -> Mission.run_submissions(mpid, mission.prev_mission_pid)
+		# Construct new plan from mission's original plan
+		mission = Mission.get(mpid)
+		new_plan = case mission.mission_plan do
+			nil -> %{}
+			_ -> construct_new_mission_plan(mission)
 		end
+		Mission.construct_from_plan(mpid, new_plan)
 
 		{:ok, %FieldAgent{field_agent | node: Node.self}}
 	end
@@ -69,28 +71,36 @@ defmodule Cingi.FieldAgent do
 		{:reply, field_agent, field_agent}
 	end
 
+	def handle_cast(:run_mission, field_agent) do
+		mpid = field_agent.mission_pid
+		mission = Mission.get(mpid)
+		Outpost.mission_has_run(field_agent.outpost_pid, mpid)
+
+		cond do
+			mission.skipped -> FieldAgent.send_result(self(), %{status: nil}, mpid)
+			mission.cmd -> Outpost.queue_field_agent_for_bash(field_agent.outpost_pid, self())
+			mission.submissions -> Mission.run_submissions(mpid, mission.prev_mission_pid)
+		end
+
+		{:noreply, field_agent}
+	end
+
 	def handle_cast(:stop, field_agent) do
-		mission = Mission.get(field_agent.mission_pid)
-		case {mission.cmd, field_agent.proc} do
-			{nil, _} ->
-				mission.submission_holds |> Enum.map(fn(h) ->
-					sub = Mission.get(h.pid)
-					FieldAgent.stop(sub.field_agent_pid)
-				end)
-			{_, nil} -> :ok
+		case field_agent.proc do
+			nil -> :ok
 			_ -> Proc.send_input field_agent.proc, "kill\n"
 		end
-		{:noreply, %FieldAgent{field_agent | stopped: true}}
+		FieldAgent.send_result(self(), %{status: 137}, field_agent.mission_pid)
+		{:noreply, field_agent}
 	end
 
 	def handle_cast(:run_bash_process, field_agent) do
-		proc = case field_agent.stopped do
-			true ->
-				# Send a result status of 137, same as sigkill
-				FieldAgent.send_result(self(), %{status: 137})
-				nil
+		mpid = field_agent.mission_pid
+		mission = Mission.get(mpid)
+
+		proc = case mission.finished do
+			true -> nil
 			false ->
-				mission = Mission.get(field_agent.mission_pid)
 				script = "./priv/bin/wrapper.sh"
 				{input_file, is_tmp} = init_input_file(mission)
 
@@ -108,21 +118,21 @@ defmodule Cingi.FieldAgent do
 
 				outpost = Outpost.get(field_agent.outpost_pid)
 				env = convert_env(outpost.env)
-				dir = outpost.dir || "."
+				dir = outpost.dir
 
 				try do
 					Porcelain.spawn(script, cmds, dir: dir, env: env, in: :receive, out: {:send, self()}, err: err)
 				rescue
 					# Error, send result as a 137 sigkill
-					_ -> FieldAgent.send_result(self(), %{status: 137})
+					_ -> FieldAgent.send_result(self(), %{status: 137}, mpid)
 				end
 		end
 		{:noreply, %FieldAgent{field_agent | proc: proc}}
 	end
 
-	def handle_cast({:result, result, prev_mpid}, field_agent) do
+	def handle_cast({:result, result, finished_mpid}, field_agent) do
 		mpid = field_agent.mission_pid
-		Mission.send_result(mpid, result, prev_mpid)
+		Mission.send_result(mpid, result, finished_mpid)
 		{:noreply, field_agent}
 	end
 
@@ -144,7 +154,7 @@ defmodule Cingi.FieldAgent do
 	end
 
 	def handle_info({_pid, :result, result}, field_agent) do
-		FieldAgent.send_result(self(), result)
+		FieldAgent.send_result(self(), result, field_agent.mission_pid)
 		{:noreply, field_agent}
 	end
 
@@ -191,5 +201,63 @@ defmodule Cingi.FieldAgent do
 
 	def convert_env(env_map) do
 		Enum.map(env_map || %{}, &(&1))
+	end
+
+	defp construct_new_mission_plan(mission) do
+		plan = mission.mission_plan
+		case plan do
+			%{} -> construct_plan_from_map(plan, mission)
+			[] -> %{}
+			[_|_] -> %{submissions: plan |> Enum.with_index}
+			_ -> %{cmd: plan}
+		end
+	end
+
+	defp construct_plan_from_map(plan, mission) do
+		keys = Map.keys(plan)
+		case length(keys) do
+			0 -> %{}
+			_ -> construct_plan_from_map(:has_keys, plan, mission)
+		end
+	end
+
+	defp construct_plan_from_map(:has_keys, plan, mission) do
+		template = case plan["extend_mission_plan"] do
+			%{"file" => _} -> %{}
+			key ->
+				key = case key do
+					%{"key" => key} -> key
+					key -> key
+				end
+				Mission.get_mission_plan_template(mission.pid, key)
+		end
+
+		plan = Map.merge(template, plan) |> Map.delete("extend_mission_plan")
+		submissions = plan["missions"]
+
+		Map.merge(
+			%{
+				name: plan["name"] || nil,
+				when: plan["when"] || nil,
+				mission_plan: plan,
+				mission_plan_templates: plan["mission_plan_templates"] || nil,
+				input_file: case Map.has_key?(plan, "input") do
+					false -> "$IN"
+					true -> plan["input"]
+				end,
+				output_filter: plan["output"],
+			},
+			cond do
+				is_map(submissions) -> %{
+					submissions: submissions,
+					fail_fast: Map.get(plan, "fail_fast", false) || false # By default parallel missions don't fail fast
+				}
+				is_list(submissions) -> %{
+					submissions: submissions |> Enum.with_index,
+					fail_fast: Map.get(plan, "fail_fast", true) || false # By default sequential missions fail fast
+				}
+				true -> %{cmd: submissions}
+			end
+		)
 	end
 end

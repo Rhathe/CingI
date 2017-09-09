@@ -5,11 +5,92 @@ defmodule CingiFieldAgentTest do
 	alias Cingi.Outpost
 	doctest FieldAgent
 
+	import ExUnit.CaptureIO
+
 	describe "with a blank outpost" do
 		setup [:blank_outpost]
 
+		test "constructs with yaml command", ctx do
+			{_, mpid} = fa_with_plan("echo 1", ctx.outpost_pid)
+			mission = Mission.get(mpid)
+			assert mission.key == "echo_1"
+			assert mission.cmd == "echo 1"
+			assert mission.submissions == nil
+		end
+
+		test "constructs with yaml map", ctx do
+			{_, mpid} = fa_with_plan(%{
+				"name" => "mission_1",
+				"missions" => "echo 1",
+			}, ctx.outpost_pid)
+			mission = Mission.get(mpid)
+			assert mission.key == "mission_1"
+			assert mission.cmd == "echo 1"
+			assert mission.submissions == nil
+		end
+
+		test "constructs with yaml map and just command, key is missions", ctx do
+			{_, mpid} = fa_with_plan(%{
+				"missions" => "echo 1",
+			}, ctx.outpost_pid)
+			mission = Mission.get(mpid)
+			assert mission.key == "echo_1"
+			assert mission.cmd == "echo 1"
+			assert mission.submissions == nil
+		end
+
+		test "constructs with yaml map and just command, keys are missions", ctx do
+			{_, mpid} = fa_with_plan(%{
+				"missions" => %{
+					"missions" => "echo 1"
+				}
+			}, ctx.outpost_pid)
+			mission = Mission.get(mpid)
+			assert mission.key == ""
+			assert mission.cmd == nil
+			assert mission.submissions == %{"missions" => "echo 1"}
+		end
+
+		test "constructs with yaml map and array of commands", ctx do
+			{_, mpid} = fa_with_plan(%{
+				"name" => "mission_1",
+				"missions" => ["echo 1", "echo 2"],
+			}, ctx.outpost_pid)
+			mission = Mission.get(mpid)
+			assert mission.key == "mission_1"
+			assert mission.cmd == nil
+			assert mission.submissions == [{"echo 1", 0}, {"echo 2", 1}]
+		end
+
+		test "constructs with yaml map and map of commands", ctx do
+			{_, mpid} = fa_with_plan(%{
+				"name" => "mission_1",
+				"missions" => %{
+					"submission 1" => "echo 1",
+					"submission 2" => %{
+						"name" => "new submission 2",
+						"missions" => "echo 2"
+					}
+				},
+			}, ctx.outpost_pid)
+			mission = Mission.get(mpid)
+			assert mission.key == "mission_1"
+			assert mission.cmd == nil
+			assert mission.submissions == %{
+				"submission 1" => "echo 1",
+				"submission 2" => %{
+					"name" => "new submission 2",
+					"missions" => "echo 2"
+				}
+			}
+		end
+	end
+
+	describe "with a blank outpost, running mission" do
+		setup [:blank_outpost]
+
 		test "runs with mission args", ctx do
-			{fpid, mpid} = fa_with_cmd("echo blah", ctx.outpost_pid)
+			{fpid, mpid} = run_fa_with_plan("echo blah", ctx.outpost_pid)
 			Helper.check_exit_code mpid
 
 			assert %{
@@ -23,7 +104,7 @@ defmodule CingiFieldAgentTest do
 		end
 
 		test "runs no mission args", ctx do
-			{fpid, mpid} = fa_with_cmd("echo", ctx.outpost_pid)
+			{fpid, mpid} = run_fa_with_plan("echo", ctx.outpost_pid)
 			Helper.check_exit_code mpid
 
 			assert %{
@@ -37,7 +118,7 @@ defmodule CingiFieldAgentTest do
 		end
 
 		test "runs mission with appropriate running/finished flag", ctx do
-			{fpid, mpid} = fa_with_cmd("ncat -l -i 1 9000", ctx.outpost_pid)
+			{fpid, mpid} = run_fa_with_plan("ncat -l -i 1 9000", ctx.outpost_pid)
 			FieldAgent.get(fpid) # flush
 
 			assert %{
@@ -63,7 +144,7 @@ defmodule CingiFieldAgentTest do
 		end
 
 		test "runs mission with args and ampersands", ctx do
-			{fpid, mpid} = fa_with_cmd("echo blah1 && sleep 0.1 && echo blah2", ctx.outpost_pid)
+			{fpid, mpid} = run_fa_with_plan("echo blah1 && sleep 0.1 && echo blah2", ctx.outpost_pid)
 			Helper.check_exit_code mpid
 
 			assert %{
@@ -79,8 +160,26 @@ defmodule CingiFieldAgentTest do
 			} = Mission.get(mpid)
 		end
 
+		test "replaces empty mission with an easy exit command", ctx do
+			execute = fn ->
+				{_, mpid} = run_fa_with_plan(nil, ctx.outpost_pid)
+				Helper.check_exit_code mpid
+
+				assert %{
+					cmd: "exit 199",
+					mission_plan: nil,
+					output: [],
+					input_file: "$IN",
+					submissions_num: 0,
+					running: false,
+				} = Mission.get(mpid)
+			end
+
+			assert capture_io(:stderr, execute) =~ "Must have cmd or submissions, got nil"
+		end
+
 		test "kills bash process", ctx do
-			{fpid, mpid} = fa_with_cmd("ncat -l -i 2 19009", ctx.outpost_pid)
+			{fpid, mpid} = run_fa_with_plan("ncat -l -i 2 19009", ctx.outpost_pid)
 			FieldAgent.stop fpid
 			Helper.check_exit_code mpid
 
@@ -98,15 +197,18 @@ defmodule CingiFieldAgentTest do
 			opid = ctx.outpost_pid
 			{:ok, mpid1} = Mission.start_link [submissions: [{"echo 1", 0}]]
 			{:ok, fpid1} = FieldAgent.start_link(mission_pid: mpid1, outpost_pid: opid)
+			Mission.run_submissions(mpid1)
 
-			{:ok, mpid2} = Mission.start_link [cmd: "ncat -l -i 1 19010", supermission_pid: mpid1]
+			{:ok, mpid2} = Mission.start_link [cmd: "sleep 1; exit 198", supermission_pid: mpid1]
 			{:ok, fpid2} = FieldAgent.start_link(mission_pid: mpid2, outpost_pid: opid)
 
 			FieldAgent.stop fpid1
+			FieldAgent.run_mission fpid1
+			FieldAgent.run_mission fpid2
 			Helper.check_exit_code mpid2
 
 			assert %{
-				cmd: "ncat -l -i 1 19010",
+				cmd: "sleep 1; exit 198",
 				output: [],
 				finished: true,
 				running: false,
@@ -121,9 +223,15 @@ defmodule CingiFieldAgentTest do
 		[outpost_pid: pid]
 	end
 
-	defp fa_with_cmd(cmd, opid) do
-		{:ok, mpid} = Mission.start_link [cmd: cmd]
+	defp fa_with_plan(plan, opid) do
+		{:ok, mpid} = Mission.start_link [mission_plan: plan]
 		{:ok, fpid} = FieldAgent.start_link(mission_pid: mpid, outpost_pid: opid)
+		{fpid, mpid}
+	end
+
+	defp run_fa_with_plan(plan, opid) do
+		{fpid, mpid} = fa_with_plan(plan, opid)
+		FieldAgent.run_mission(fpid)
 		{fpid, mpid}
 	end
 end
