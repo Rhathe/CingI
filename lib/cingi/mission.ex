@@ -65,6 +65,14 @@ defmodule Cingi.Mission do
 		GenServer.cast(pid, {:construct_from_plan, new_plan})
 	end
 
+	def set_field_agent(pid, field_agent_pid) do
+		GenServer.cast(pid, {:set_field_agent, field_agent_pid})
+	end
+
+	def request_mission_plan(pid, key, fa_pid) do
+		GenServer.cast(pid, {:request_mission_plan, key, fa_pid})
+	end
+
 	def stop(pid) do
 		GenServer.cast(pid, :stop)
 	end
@@ -97,10 +105,6 @@ defmodule Cingi.Mission do
 		end
 	end
 
-	def set_as_running(pid, field_agent_pid) do
-		GenServer.call(pid, {:set_as_running, field_agent_pid})
-	end
-
 	def get_output(pid, selector \\ nil) do
 		case pid do
 			nil -> []
@@ -123,9 +127,20 @@ defmodule Cingi.Mission do
 	# CASTS #
 	#########
 
+	def handle_cast({:request_mission_plan, key, fa_pid}, mission) do
+		templates = mission.mission_plan_templates || %{}
+		FieldAgent.send_mission_plan(fa_pid, templates[key], mission.supermission_pid, key)
+		{:noreply, mission}
+	end
+
 	def handle_cast({:construct_from_plan, new_plan}, mission) do
-		mission = Map.merge(mission, new_plan)
+		mission = Map.merge(mission, construct_plan(new_plan))
+
 		mission = %Mission{mission |
+			submissions: case mission.submissions do
+				[] -> nil
+				s -> s
+			end,
 			submissions_num: case mission.submissions do
 				%{} -> length(Map.keys(mission.submissions))
 				[_|_] -> length(mission.submissions)
@@ -154,6 +169,7 @@ defmodule Cingi.Mission do
 		end
 
 		mission_pid = mission.supermission_pid
+
 		if mission_pid do Mission.initialized_submission(mission_pid, self()) end
 		MissionReport.initialized_mission(mission.report_pid, self())
 
@@ -310,14 +326,18 @@ defmodule Cingi.Mission do
 		{:noreply, %Mission{mission | fail_fast: true}}
 	end
 
+	def handle_cast({:set_field_agent, field_agent}, mission) do
+		mission = %Mission{mission | running: true, field_agent_pid: field_agent}
+
+		# Send self as next_mpid, so field agent can request from this mission first
+		FieldAgent.send_mission_plan(field_agent, mission.mission_plan, self())
+		{:noreply, mission}
+	end
+
 	#########
 	# CALLS #
 	#########
 
-	def handle_call({:set_as_running, field_agent}, _from, mission) do
-		mission = %Mission{mission | running: true, field_agent_pid: field_agent}
-		{:reply, mission, mission}
-	end
 
 	def handle_call(:pause, _from, mission) do
 		mission = %Mission{mission | running: false}
@@ -451,5 +471,34 @@ defmodule Cingi.Mission do
 		name = String.replace(name, ~r/ /, "_")
 		name = String.replace(name, ~r/[^_a-zA-Z0-9]/, "")
 		String.downcase(name)
+	end
+
+	def construct_plan(plan) do
+		missions = plan["missions"]
+
+		Map.merge(
+			%{
+				name: plan["name"] || nil,
+				when: plan["when"] || nil,
+				mission_plan: plan,
+				mission_plan_templates: plan["mission_plan_templates"] || nil,
+				input_file: case Map.has_key?(plan, "input") do
+					false -> "$IN"
+					true -> plan["input"]
+				end,
+				output_filter: plan["output"],
+			},
+			cond do
+				is_map(missions) -> %{
+					submissions: missions,
+					fail_fast: Map.get(plan, "fail_fast", false) || false # By default parallel missions don't fail fast
+				}
+				is_list(missions) -> %{
+					submissions: missions |> Enum.with_index,
+					fail_fast: Map.get(plan, "fail_fast", true) || false # By default sequential missions fail fast
+				}
+				true -> %{cmd: missions}
+			end
+		)
 	end
 end

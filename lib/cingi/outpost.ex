@@ -75,6 +75,10 @@ defmodule Cingi.Outpost do
 		GenServer.cast(pid, {:mission_has_run, mission_pid})
 	end
 
+	def mission_plan_has_finished(pid, fa_pid) do
+		GenServer.cast(pid, {:mission_plan_has_finished, fa_pid})
+	end
+
 	def mission_has_finished(pid, mission_pid, result) do
 		GenServer.cast(pid, {:mission_has_finished, mission_pid, result})
 	end
@@ -176,13 +180,17 @@ defmodule Cingi.Outpost do
 	end
 
 	def handle_cast({:run_mission, mission}, outpost) do
-		{:ok, fa_pid} = FieldAgent.start_link(mission_pid: mission, outpost_pid: self())
-		FieldAgent.run_mission(fa_pid)
+		FieldAgent.start_link(mission_pid: mission, outpost_pid: self())
 		{:noreply, %Outpost{outpost | missions: outpost.missions ++ [mission]}}
 	end
 
 	def handle_cast({:mission_has_run, mission_pid}, outpost) do
 		Branch.mission_has_run(outpost.branch_pid, mission_pid)
+		{:noreply, outpost}
+	end
+
+	def handle_cast({:mission_plan_has_finished, fa_pid}, outpost) do
+		FieldAgent.run_mission(fa_pid)
 		{:noreply, outpost}
 	end
 

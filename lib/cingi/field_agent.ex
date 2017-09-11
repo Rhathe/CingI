@@ -17,6 +17,7 @@ defmodule Cingi.FieldAgent do
 		outpost_pid: nil,
 		node: nil,
 		proc: nil,
+		constructed_plan: %{},
 	]
 
 	# Client API
@@ -41,6 +42,14 @@ defmodule Cingi.FieldAgent do
 		GenServer.cast(pid, :run_bash_process)
 	end
 
+	def send_mission_plan(pid, plan, next_mpid, key \\ nil) do
+		GenServer.cast(pid, {:received_mission_plan, plan, next_mpid, key})
+	end
+
+	def finish_mission_plan(pid) do
+		GenServer.cast(pid, :finish_mission_plan)
+	end
+
 	def send_result(pid, result, finished_mpid) do
 		GenServer.cast(pid, {:result, result, finished_mpid})
 	end
@@ -54,21 +63,57 @@ defmodule Cingi.FieldAgent do
 	def init(opts) do
 		field_agent = struct(FieldAgent, opts)
 		mpid = field_agent.mission_pid
-		Mission.set_as_running(mpid, self())
-
-		# Construct new plan from mission's original plan
-		mission = Mission.get(mpid)
-		new_plan = case mission.mission_plan do
-			nil -> %{}
-			_ -> construct_new_mission_plan(mission)
-		end
-		Mission.construct_from_plan(mpid, new_plan)
-
+		Mission.set_field_agent(mpid, self())
 		{:ok, %FieldAgent{field_agent | node: Node.self}}
 	end
 
 	def handle_call(:get, _from, field_agent) do
 		{:reply, field_agent, field_agent}
+	end
+
+	def handle_cast({:received_mission_plan, plan, next_mpid, key}, field_agent) do
+		new_plan = case {plan, next_mpid} do
+			{nil, nil} ->
+				# No mpid and no plan? Just construct from whatever plan you have
+				plan = field_agent.constructed_plan
+				FieldAgent.finish_mission_plan(self())
+				plan
+			{nil, mpid} ->
+				# mission did not have requested plan, should ask supermission if it does
+				Mission.request_mission_plan(mpid, key, self())
+				field_agent.constructed_plan
+			{plan, mpid} ->
+				new_plan = case plan do
+					%{} -> plan |> Map.merge(field_agent.constructed_plan)
+					[] -> %{}
+					_ -> %{"missions" => plan}
+				end
+
+				case {mpid, new_plan["extend_mission_plan"]} do
+					# No more mpids to request from, construct from new_plan regardless
+					{nil, _} -> FieldAgent.finish_mission_plan(self())
+
+					# No more extending, construct_ from new_plan
+					{_, nil} -> FieldAgent.finish_mission_plan(self())
+
+					# TODO, support file extending
+					{_, %{"file" => _}} -> FieldAgent.finish_mission_plan(self())
+
+					# If a key does exist, request for the template with given key from the given mpid
+					{mpid, %{"key" => key}} -> Mission.request_mission_plan(mpid, key, self())
+					{mpid, key} -> Mission.request_mission_plan(mpid, key, self())
+				end
+
+				new_plan
+		end |> Map.delete("extend_mission_plan")
+
+		{:noreply, %FieldAgent{field_agent | constructed_plan: new_plan}}
+	end
+
+	def handle_cast(:finish_mission_plan, field_agent) do
+		Mission.construct_from_plan(field_agent.mission_pid, field_agent.constructed_plan)
+		Outpost.mission_plan_has_finished(field_agent.outpost_pid, self())
+		{:noreply, field_agent}
 	end
 
 	def handle_cast(:run_mission, field_agent) do
@@ -201,63 +246,5 @@ defmodule Cingi.FieldAgent do
 
 	def convert_env(env_map) do
 		Enum.map(env_map || %{}, &(&1))
-	end
-
-	defp construct_new_mission_plan(mission) do
-		plan = mission.mission_plan
-		case plan do
-			%{} -> construct_plan_from_map(plan, mission)
-			[] -> %{}
-			[_|_] -> %{submissions: plan |> Enum.with_index}
-			_ -> %{cmd: plan}
-		end
-	end
-
-	defp construct_plan_from_map(plan, mission) do
-		keys = Map.keys(plan)
-		case length(keys) do
-			0 -> %{}
-			_ -> construct_plan_from_map(:has_keys, plan, mission)
-		end
-	end
-
-	defp construct_plan_from_map(:has_keys, plan, mission) do
-		template = case plan["extend_mission_plan"] do
-			%{"file" => _} -> %{}
-			key ->
-				key = case key do
-					%{"key" => key} -> key
-					key -> key
-				end
-				Mission.get_mission_plan_template(mission.pid, key)
-		end
-
-		plan = Map.merge(template, plan) |> Map.delete("extend_mission_plan")
-		submissions = plan["missions"]
-
-		Map.merge(
-			%{
-				name: plan["name"] || nil,
-				when: plan["when"] || nil,
-				mission_plan: plan,
-				mission_plan_templates: plan["mission_plan_templates"] || nil,
-				input_file: case Map.has_key?(plan, "input") do
-					false -> "$IN"
-					true -> plan["input"]
-				end,
-				output_filter: plan["output"],
-			},
-			cond do
-				is_map(submissions) -> %{
-					submissions: submissions,
-					fail_fast: Map.get(plan, "fail_fast", false) || false # By default parallel missions don't fail fast
-				}
-				is_list(submissions) -> %{
-					submissions: submissions |> Enum.with_index,
-					fail_fast: Map.get(plan, "fail_fast", true) || false # By default sequential missions fail fast
-				}
-				true -> %{cmd: submissions}
-			end
-		)
 	end
 end

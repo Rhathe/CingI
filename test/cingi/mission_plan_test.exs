@@ -107,7 +107,6 @@ defmodule CingiMissionPlansTest do
 		end
 	end
 
-		@tag tmp: true
 	test "runs when file" do
 		res = Helper.create_mission_report([file: "test/mission_plans/when.plan"])
 		Headquarters.resume(res[:hq_pid])

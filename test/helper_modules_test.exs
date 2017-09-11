@@ -12,6 +12,12 @@ defmodule Helper do
 		end)
 	end
 
+	def wait_for_valid_mission(pid) do
+		timing(fn () ->
+			mission = Mission.get pid
+			[mission.cmd != nil or mission.submissions != nil, mission]
+		end)
+	end
 	def wait_for_finished(pid) do
 		timing(fn () ->
 			mission = Mission.get pid
