@@ -186,14 +186,21 @@ defmodule Cingi.Branch do
 			supermission -> Mission.get_outpost(supermission)
 		end
 
+		outpost_opts = [
+			branch_pid: self(),
+			plan: Mission.get_outpost_plan(mission_pid),
+			parent_pid: base_outpost,
+			root_mission_pid: mission_pid,
+		]
+
 		# See if mission has an outpost configuration
 		# if so, use that to start initialize a new outpost,
 		# otherwise use an outpost from this mission's supermission,
 		# constructing on this node if necessary
-		{:ok, outpost} = case {Mission.get_outpost_plan(mission_pid), base_outpost} do
-			{nil, nil} -> Outpost.start_link(branch_pid: self())
+		{:ok, outpost} = case {outpost_opts[:plan], base_outpost} do
+			{nil, nil} -> Outpost.start_link(outpost_opts)
 			{nil, base_outpost} -> Outpost.get_or_create_version_on_branch(base_outpost, self())
-			{plan, parent} -> Outpost.start_link(branch_pid: self(), plan: plan, parent_pid: parent)
+			_ -> Outpost.start_link(outpost_opts)
 		end
 
 		Outpost.run_mission(outpost, mission_pid)

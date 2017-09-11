@@ -7,6 +7,7 @@ defmodule Cingi.MissionReport do
 	defstruct [
 		plan: %{},
 		branch_pid: nil,
+		prev_mission_pid: nil,
 		outpost_pid: nil, # Used when submitted by an outpost trying to setup
 		missions: []
 	]
@@ -50,7 +51,7 @@ defmodule Cingi.MissionReport do
 
 	def start_missions(map, opts) do
 		opts = opts |> Keyword.delete(:string) |> Keyword.delete(:file) |> Keyword.delete(:map)
-		MissionReport.init_mission(self(), [mission_plan: map])
+		MissionReport.init_mission(self(), [mission_plan: map, prev_mission_pid: opts[:prev_mission_pid]])
 		struct(MissionReport, Keyword.put(opts, :plan, map))
 	end
 

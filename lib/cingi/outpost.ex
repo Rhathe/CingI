@@ -19,6 +19,7 @@ defmodule Cingi.Outpost do
 		pid: nil,
 		branch_pid: nil,
 		parent_pid: nil,
+		root_mission_pid: nil,
 
 		setup_steps: nil,
 		alternates: nil,
@@ -91,8 +92,12 @@ defmodule Cingi.Outpost do
 		GenServer.cast(pid, :setup_with_steps)
 	end
 
+	def queue_field_agent_for_plan(pid, fa_pid) do
+		GenServer.cast(pid, {:queue_field_agent, :mission_plan, fa_pid})
+	end
+
 	def queue_field_agent_for_bash(pid, fa_pid) do
-		GenServer.cast(pid, {:queue_field_agent_for_bash, fa_pid})
+		GenServer.cast(pid, {:queue_field_agent, :bash_process, fa_pid})
 	end
 
 	# Call explicitely, don't use Agent module with anonymous functions
@@ -207,7 +212,12 @@ defmodule Cingi.Outpost do
 					{nil, nil} -> Outpost.report_has_finished(self(), nil, nil)
 					{setup_steps, _} ->
 						setup_steps = setup_steps || [":"]
-						yaml_opts = [map: %{"missions" => setup_steps}, outpost_pid: self()]
+						root_mission = Mission.get(outpost.root_mission_pid)
+						yaml_opts = [
+							prev_mission_pid: root_mission.prev_mission_pid,
+							map: %{"missions" => setup_steps},
+							outpost_pid: self(),
+						]
 						Branch.queue_report outpost.branch_pid, yaml_opts
 				end
 				%Outpost{outpost | setting_up: true}
@@ -215,16 +225,17 @@ defmodule Cingi.Outpost do
 		{:noreply, outpost}
 	end
 
-	def handle_cast({:queue_field_agent_for_bash, fa_pid}, outpost) do
+	def handle_cast({:queue_field_agent, qtype, fa_pid}, outpost) do
 		if outpost.setup_failed do FieldAgent.stop(fa_pid) end
+		queued_fa = {qtype, fa_pid}
 
 		outpost = case outpost.is_setup do
 			true ->
-				FieldAgent.run_bash_process fa_pid
+				run_field_agent queued_fa
 				outpost
 			false ->
 				Outpost.setup_with_steps self()
-				queue = outpost.queued_field_agents ++ [fa_pid]
+				queue = outpost.queued_field_agents ++ [queued_fa]
 				%Outpost{outpost | queued_field_agents: queue}
 		end
 		{:noreply, outpost}
@@ -281,11 +292,11 @@ defmodule Cingi.Outpost do
 
 		setup_failed = case exit_code do
 			0 -> false
-			_ -> Enum.map(outpost.queued_field_agents, &FieldAgent.stop/1)
+			_ -> Enum.map(outpost.queued_field_agents, &(FieldAgent.stop(elem(&1, 1))))
 				true
 		end
 
-		Enum.map(outpost.queued_field_agents, &FieldAgent.run_bash_process/1)
+		Enum.map(outpost.queued_field_agents, &run_field_agent/1)
 
 		{:noreply, %Outpost{outpost |
 			is_setup: true,
@@ -295,5 +306,17 @@ defmodule Cingi.Outpost do
 			dir: dir || ".",
 			env: env,
 		}}
+	end
+
+	###########
+	# HELPERS #
+	###########
+
+	def run_field_agent({:bash_process, fa_pid}) do
+		FieldAgent.run_bash_process fa_pid
+	end
+
+	def run_field_agent({:mission_plan, fa_pid}) do
+		FieldAgent.finish_mission_plan fa_pid
 	end
 end
