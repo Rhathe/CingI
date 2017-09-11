@@ -55,7 +55,7 @@ defmodule Helper do
 		end)
 	end
 
-	def timing(fnc, limit \\ 7, start \\ nil) do
+	def timing(fnc, limit \\ 10, start \\ nil) do
 		start = start || Time.utc_now
 		diff = Time.diff(Time.utc_now, start)
 

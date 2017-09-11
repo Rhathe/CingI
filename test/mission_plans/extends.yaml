@@ -11,9 +11,16 @@ mission_plan_templates:
     missions: echo two
   three:
     missions: echo three
+  finished_plan:
+    missions: echo nested_complete
 missions:
   - extend_mission_plan: one
   - extend_mission_plan: two
+  - mission_plan_templates:
+      nested_plan:
+        extend_mission_plan: finished_plan
+    missions:
+      - extend_mission_plan: nested_plan
   - echo "premature end"
-  - extend_mission_plan: four
+  - extend_mission_plan: no_mission_plan
   - echo "end that should not be here"
