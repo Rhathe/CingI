@@ -179,19 +179,19 @@ defmodule Cingi.Mission do
 			|> Enum.map(&(&1.exit_code))
 
 		# Check if a failure should trigger a fail_fast behavior
-		check =
+		fail_fast? =
 			self() == finished_mpid or (
 				length(exit_codes) > 0
 				and Enum.max(exit_codes) > 0
 				and mission.fail_fast
 			)
 
-		# If mission already finished, do nothing
-		if check do Enum.map(sub_pids, &Mission.stop/1) end
+		# stop all submissions if fail_fast is necessary
+		if fail_fast? do Enum.map(sub_pids, &Mission.stop/1) end
 
 		# Boolean to check if more submissions need to run
 		more_submissions? = not mission.skipped
-			and not check
+			and not fail_fast?
 			and (length(exit_codes) != mission.submissions_num)
 
 		exit_code = cond do
@@ -306,14 +306,7 @@ defmodule Cingi.Mission do
 	end
 
 	def handle_cast(:stop, mission) do
-		cond do
-			mission.cmd -> FieldAgent.stop(mission.field_agent_pid)
-			mission.submissions ->
-				mission.submission_holds
-					|> Enum.map(&(&1.pid))
-					|> Enum.filter(&(&1))
-					|> Enum.map(&Mission.stop/1)
-		end
+		FieldAgent.stop(mission.field_agent_pid)
 		{:noreply, %Mission{mission | fail_fast: true}}
 	end
 

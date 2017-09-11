@@ -49,13 +49,15 @@ defmodule Helper do
 		end)
 	end
 
-	def timing(fnc, limit \\ 5, start \\ nil) do
+	def timing(fnc, limit \\ 7, start \\ nil) do
 		start = start || Time.utc_now
 		diff = Time.diff(Time.utc_now, start)
 
 		ret = [diff > limit] ++ fnc.()
 		case ret do
-			[true, _, _] -> raise "Waiting exceeded #{limit} seconds"
+			[true, _, _] ->
+				IO.inspect {"Wait exceeded #{limit} seconds", ret}
+				raise "Waiting exceeded #{limit} seconds"
 			[false, false, _] -> timing(fnc, limit, start)
 			[false, nil, _] -> timing(fnc, limit, start)
 			[_, _, val] -> val
