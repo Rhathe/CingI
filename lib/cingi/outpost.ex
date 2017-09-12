@@ -127,6 +127,7 @@ defmodule Cingi.Outpost do
 					alternates: o.alternates,
 					parent_pid: o.parent_pid,
 					plan: o.plan,
+					root_mission_pid: o.root_mission_pid,
 					setup_steps: o.setup_steps
 				}
 		end
@@ -213,6 +214,7 @@ defmodule Cingi.Outpost do
 					{setup_steps, _} ->
 						setup_steps = setup_steps || [":"]
 						root_mission = Mission.get(outpost.root_mission_pid)
+
 						yaml_opts = [
 							prev_mission_pid: root_mission.prev_mission_pid,
 							map: %{"missions" => setup_steps},
