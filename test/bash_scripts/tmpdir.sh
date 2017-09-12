@@ -8,4 +8,5 @@ fi
 
 cp $0 $WORK_DIR
 
-echo "{\"dir\": \"$WORK_DIR\"}"
+OLD_DIR=`pwd`
+echo "{\"dir\": \"$WORK_DIR\", \"old_dir\": \"$OLD_DIR\"}"

@@ -129,7 +129,7 @@ defmodule Cingi.Mission do
 
 	def handle_cast({:request_mission_plan, key, fa_pid}, mission) do
 		templates = mission.mission_plan_templates || %{}
-		FieldAgent.send_mission_plan(fa_pid, templates[key], mission.supermission_pid, key)
+		FieldAgent.send_mission_plan(fa_pid, templates[key], mission.supermission_pid, mission.field_agent_pid, key)
 		{:noreply, mission}
 	end
 
@@ -330,7 +330,7 @@ defmodule Cingi.Mission do
 		mission = %Mission{mission | running: true, field_agent_pid: field_agent}
 
 		# Send self as next_mpid, so field agent can request from this mission first
-		FieldAgent.send_mission_plan(field_agent, mission.mission_plan, self())
+		FieldAgent.send_mission_plan(field_agent, mission.mission_plan, self(), field_agent)
 		{:noreply, mission}
 	end
 

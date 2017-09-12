@@ -92,12 +92,12 @@ defmodule Cingi.Outpost do
 		GenServer.cast(pid, :setup_with_steps)
 	end
 
-	def queue_field_agent_for_plan(pid, fa_pid) do
-		GenServer.cast(pid, {:queue_field_agent, :mission_plan, fa_pid})
+	def queue_field_agent_for_plan(pid, file, fa_pid) do
+		GenServer.cast(pid, {:queue_field_agent, {:mission_plan, fa_pid, file}})
 	end
 
 	def queue_field_agent_for_bash(pid, fa_pid) do
-		GenServer.cast(pid, {:queue_field_agent, :bash_process, fa_pid})
+		GenServer.cast(pid, {:queue_field_agent, {:bash_process, fa_pid}})
 	end
 
 	# Call explicitely, don't use Agent module with anonymous functions
@@ -225,17 +225,17 @@ defmodule Cingi.Outpost do
 		{:noreply, outpost}
 	end
 
-	def handle_cast({:queue_field_agent, qtype, fa_pid}, outpost) do
+	def handle_cast({:queue_field_agent, queued_fa_tup}, outpost) do
+		fa_pid = elem(queued_fa_tup, 1)
 		if outpost.setup_failed do FieldAgent.stop(fa_pid) end
-		queued_fa = {qtype, fa_pid}
 
 		outpost = case outpost.is_setup do
 			true ->
-				run_field_agent queued_fa
+				run_field_agent(queued_fa_tup, outpost)
 				outpost
 			false ->
 				Outpost.setup_with_steps self()
-				queue = outpost.queued_field_agents ++ [queued_fa]
+				queue = outpost.queued_field_agents ++ [queued_fa_tup]
 				%Outpost{outpost | queued_field_agents: queue}
 		end
 		{:noreply, outpost}
@@ -296,15 +296,18 @@ defmodule Cingi.Outpost do
 				true
 		end
 
-		Enum.map(outpost.queued_field_agents, &run_field_agent/1)
+		outpost = %Outpost{outpost |
+			dir: dir || ".",
+			env: env,
+		}
+
+		Enum.map(outpost.queued_field_agents, &(run_field_agent(&1, outpost)))
 
 		{:noreply, %Outpost{outpost |
 			is_setup: true,
 			setting_up: false,
 			setup_failed: setup_failed,
 			queued_field_agents: [],
-			dir: dir || ".",
-			env: env,
 		}}
 	end
 
@@ -312,11 +315,20 @@ defmodule Cingi.Outpost do
 	# HELPERS #
 	###########
 
-	def run_field_agent({:bash_process, fa_pid}) do
+	def run_field_agent({:bash_process, fa_pid}, _outpost) do
 		FieldAgent.run_bash_process fa_pid
 	end
 
-	def run_field_agent({:mission_plan, fa_pid}) do
-		FieldAgent.finish_mission_plan fa_pid
+	def run_field_agent({:mission_plan, fa_pid, file}, outpost) do
+		path = Path.join(outpost.dir, file)
+		plan = try do
+			YamlElixir.read_from_file path
+		catch
+			_ ->
+				IO.puts :stderr, "File #{path} does not exist here in #{System.cwd}"
+				%{}
+		end
+
+		FieldAgent.send_mission_plan(fa_pid, plan, nil, fa_pid)
 	end
 end

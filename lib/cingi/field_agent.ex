@@ -42,20 +42,24 @@ defmodule Cingi.FieldAgent do
 		GenServer.cast(pid, :run_bash_process)
 	end
 
-	def send_mission_plan(pid, plan, next_mpid, key \\ nil) do
-		GenServer.cast(pid, {:received_mission_plan, plan, next_mpid, key})
+	def send_mission_plan(pid, plan, next_mpid, ref_fa_pid, key \\ nil) do
+		GenServer.cast(pid, {:received_mission_plan, plan, next_mpid, ref_fa_pid, key})
 	end
 
 	def finish_mission_plan(pid) do
 		GenServer.cast(pid, :finish_mission_plan)
 	end
 
-	def send_result(pid, result, finished_mpid) do
-		GenServer.cast(pid, {:result, result, finished_mpid})
-	end
-
 	def mission_has_finished(pid, result) do
 		GenServer.cast(pid, {:mission_has_finished, result})
+	end
+
+	def queue_other_field_agent_on_outpost(pid, file, callback_fa_pid) do
+		GenServer.cast(pid, {:queue_other_field_agent_on_outpost, file, callback_fa_pid})
+	end
+
+	def send_result(pid, result, finished_mpid) do
+		GenServer.cast(pid, {:result, result, finished_mpid})
 	end
 
 	# Server Callbacks
@@ -71,7 +75,7 @@ defmodule Cingi.FieldAgent do
 		{:reply, field_agent, field_agent}
 	end
 
-	def handle_cast({:received_mission_plan, plan, next_mpid, key}, field_agent) do
+	def handle_cast({:received_mission_plan, plan, next_mpid, ref_fa_pid, key}, field_agent) do
 		new_plan = case {plan, next_mpid} do
 			{nil, nil} ->
 				# No mpid and no plan? Just construct from whatever plan you have
@@ -90,14 +94,13 @@ defmodule Cingi.FieldAgent do
 				end
 
 				case {mpid, new_plan["extend_mission_plan"]} do
+					{_, %{"file" => file}} -> FieldAgent.queue_other_field_agent_on_outpost(ref_fa_pid, file, self())
+
 					# No more mpids to request from, construct from new_plan regardless
 					{nil, _} -> FieldAgent.finish_mission_plan(self())
 
 					# No more extending, construct_ from new_plan
 					{_, nil} -> FieldAgent.finish_mission_plan(self())
-
-					# TODO, support file extending
-					{_, %{"file" => _}} -> FieldAgent.finish_mission_plan(self())
 
 					# If a key does exist, request for the template with given key from the given mpid
 					{mpid, %{"key" => key}} -> Mission.request_mission_plan(mpid, key, self())
@@ -108,6 +111,11 @@ defmodule Cingi.FieldAgent do
 		end |> Map.delete("extend_mission_plan")
 
 		{:noreply, %FieldAgent{field_agent | constructed_plan: new_plan}}
+	end
+
+	def handle_cast({:queue_other_field_agent_on_outpost, file, callback_fa_pid}, field_agent) do
+		Outpost.queue_field_agent_for_plan(field_agent.outpost_pid, file, callback_fa_pid)
+		{:noreply, field_agent}
 	end
 
 	def handle_cast(:finish_mission_plan, field_agent) do

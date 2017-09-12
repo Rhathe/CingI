@@ -233,8 +233,11 @@ defmodule Cingi.Branch do
 		end
 
 		running_missions = cond do
-			mission_pid in branch.running_missions -> List.delete(branch.running_missions, mission_pid)
-			true -> raise "Mission finished but not ran"
+			mission_pid in branch.running_missions ->
+				List.delete(branch.running_missions, mission_pid)
+			true ->
+				IO.puts :stderr, "Mission finished but not ran #{inspect(mission)}"
+				branch.running_missions
 		end
 
 		{:noreply, %Branch{branch |
