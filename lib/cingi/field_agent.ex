@@ -42,8 +42,8 @@ defmodule Cingi.FieldAgent do
 		GenServer.cast(pid, :run_bash_process)
 	end
 
-	def send_mission_plan(pid, plan, next_mpid, ref_fa_pid, key \\ nil) do
-		GenServer.cast(pid, {:received_mission_plan, plan, next_mpid, ref_fa_pid, key})
+	def send_mission_plan(pid, plan, from_pid, next_mpid \\ nil) do
+		GenServer.cast(pid, {:received_mission_plan, plan, from_pid, next_mpid})
 	end
 
 	def finish_mission_plan(pid) do
@@ -54,8 +54,8 @@ defmodule Cingi.FieldAgent do
 		GenServer.cast(pid, {:mission_has_finished, result})
 	end
 
-	def queue_other_field_agent_on_outpost(pid, file, callback_fa_pid) do
-		GenServer.cast(pid, {:queue_other_field_agent_on_outpost, file, callback_fa_pid})
+	def queue_other_field_agent_on_outpost_of_branch(pid, file, callback_fa_pid, branch_pid) do
+		GenServer.cast(pid, {:queue_other_field_agent_on_outpost_of_branch, file, callback_fa_pid, branch_pid})
 	end
 
 	def send_result(pid, result, finished_mpid) do
@@ -75,46 +75,38 @@ defmodule Cingi.FieldAgent do
 		{:reply, field_agent, field_agent}
 	end
 
-	def handle_cast({:received_mission_plan, plan, next_mpid, ref_fa_pid, key}, field_agent) do
-		new_plan = case {plan, next_mpid} do
-			{nil, nil} ->
-				# No mpid and no plan? Just construct from whatever plan you have
-				plan = field_agent.constructed_plan
-				FieldAgent.finish_mission_plan(self())
-				plan
-			{nil, mpid} ->
-				# mission did not have requested plan, should ask supermission if it does
-				Mission.request_mission_plan(mpid, key, self())
-				field_agent.constructed_plan
-			{plan, mpid} ->
-				new_plan = case plan do
-					%{} -> plan |> Map.merge(field_agent.constructed_plan)
-					[] -> %{}
-					_ -> %{"missions" => plan}
-				end
+	def handle_cast({:received_mission_plan, plan, from_pid, next_mpid}, field_agent) do
+		new_plan = case plan do
+			%{} -> plan |> Map.merge(field_agent.constructed_plan)
+			[] -> %{}
+			nil -> %{}
+			_ -> %{"missions" => plan}
+		end
 
-				case {mpid, new_plan["extend_mission_plan"]} do
-					{_, %{"file" => file}} -> FieldAgent.queue_other_field_agent_on_outpost(ref_fa_pid, file, self())
+		case {next_mpid, new_plan["extend_mission_plan"]} do
+			{_, %{"file" => file}} ->
+				outpost = Outpost.get(field_agent.outpost_pid)
+				branch_pid = outpost.branch_pid
+				mission = Mission.get(from_pid)
+				FieldAgent.queue_other_field_agent_on_outpost_of_branch(mission.field_agent_pid, file, self(), branch_pid)
 
-					# No more mpids to request from, construct from new_plan regardless
-					{nil, _} -> FieldAgent.finish_mission_plan(self())
+			# No more mpids to request from, construct from new_plan regardless
+			{nil, _} -> FieldAgent.finish_mission_plan(self())
 
-					# No more extending, construct_ from new_plan
-					{_, nil} -> FieldAgent.finish_mission_plan(self())
+			# No more extending, construct_ from new_plan
+			{_, nil} -> FieldAgent.finish_mission_plan(self())
 
-					# If a key does exist, request for the template with given key from the given mpid
-					{mpid, %{"key" => key}} -> Mission.request_mission_plan(mpid, key, self())
-					{mpid, key} -> Mission.request_mission_plan(mpid, key, self())
-				end
+			# If a key does exist, request for the template with given key from the given mpid
+			{mpid, %{"key" => key}} -> Mission.request_mission_plan(mpid, key, self())
+			{mpid, key} -> Mission.request_mission_plan(mpid, key, self())
+		end
 
-				new_plan
-		end |> Map.delete("extend_mission_plan")
-
-		{:noreply, %FieldAgent{field_agent | constructed_plan: new_plan}}
+		{:noreply, %FieldAgent{field_agent | constructed_plan: new_plan |> Map.delete("extend_mission_plan")}}
 	end
 
-	def handle_cast({:queue_other_field_agent_on_outpost, file, callback_fa_pid}, field_agent) do
-		Outpost.queue_field_agent_for_plan(field_agent.outpost_pid, file, callback_fa_pid)
+	def handle_cast({:queue_other_field_agent_on_outpost_of_branch, file, callback_fa_pid, branch_pid}, field_agent) do
+		outpost_pid = Outpost.get_version_on_branch(field_agent.outpost_pid, branch_pid)
+		Outpost.queue_field_agent_for_plan(outpost_pid, file, callback_fa_pid)
 		{:noreply, field_agent}
 	end
 
