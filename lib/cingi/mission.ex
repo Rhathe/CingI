@@ -130,7 +130,9 @@ defmodule Cingi.Mission do
 	def handle_cast({:request_mission_plan, key, fa_pid}, mission) do
 		templates = mission.mission_plan_templates || %{}
 		case {templates[key], mission.supermission_pid} do
-			{nil, nil} -> FieldAgent.send_mission_plan(fa_pid, %{}, self())
+			{nil, nil} ->
+				IO.puts :stderr, "Template key #{key} doesn't exist in the hierarchy"
+				FieldAgent.send_mission_plan(fa_pid, %{}, self())
 			{nil, spid} -> Mission.request_mission_plan(spid, key, fa_pid)
 			{template, spid} -> FieldAgent.send_mission_plan(fa_pid, template, self(), spid)
 		end

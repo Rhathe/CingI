@@ -109,7 +109,10 @@ defmodule CingiOutpostTest do
 
 		assert original.alternates == Outpost.get(second).alternates
 
-		alts = Outpost.get_alternates {:global, :test}
+		alts = {:global, :test}
+			|> Outpost.get_alternates
+			|> Map.values
+
 		assert length(alts) == 2
 		assert first in alts
 		assert second in alts
