@@ -42,9 +42,9 @@ defmodule Cingi.MissionReport do
 
 	def init(opts) do
 		report = cond do
-			opts[:map] -> start_missions(opts[:map], opts)
-			opts[:string] -> start_missions(YamlElixir.read_from_string(opts[:string]), opts)
-			opts[:file] -> start_missions(YamlElixir.read_from_file(opts[:file]), opts)
+			opts[:map] -> opts[:map] |> start_missions(opts)
+			opts[:string] -> opts[:string] |> get_map_from_yaml(&YamlElixir.read_from_string/1) |> start_missions(opts)
+			opts[:file] -> opts[:file] |> get_map_from_yaml(&YamlElixir.read_from_file/1) |> start_missions(opts)
 		end
 		{:ok, report}
 	end
@@ -81,6 +81,16 @@ defmodule Cingi.MissionReport do
 
 	def handle_call(:get, _from, report) do
 		{:reply, report, report}
+	end
+
+	def get_map_from_yaml(yaml, parser) do
+		try do
+			parser.(yaml)
+		catch
+			err ->
+				IO.puts :stderr, "Error parsing yaml: #{yaml}"
+				IO.puts :stderr, inspect(err)
+		end
 	end
 
 	def parse_variable(v, opts \\ []) do

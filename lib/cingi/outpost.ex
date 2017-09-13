@@ -251,8 +251,22 @@ defmodule Cingi.Outpost do
 				|> String.split("\n", trim: true)
 				|> Enum.take(-1)
 				|> Enum.at(0)
-				|> YamlElixir.read_from_string
 		rescue
+			_ -> ""
+		end
+
+		output = try do
+			YamlElixir.read_from_string(output || "")
+		catch
+			err ->
+				IO.puts :stderr, "Error parsing setup steps line: #{output}"
+				IO.puts :stderr, inspect(err)
+				%{}
+		end
+
+		# output needs to be a map
+		output = case output do
+			%{} -> output
 			_ -> %{}
 		end
 
