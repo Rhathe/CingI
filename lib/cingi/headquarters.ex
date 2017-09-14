@@ -17,12 +17,13 @@ defmodule Cingi.Headquarters do
 		running: true,
 		branch_pids: [],
 		queued_missions: [],
+		running_missions: %{},
+		finished_missions: %{},
 	]
 
 	def start_link(opts \\ []) do
 		GenServer.start_link(__MODULE__, [], opts)
 	end
-
 
 	def get(pid) do
 		GenServer.call pid, :get
@@ -52,6 +53,10 @@ defmodule Cingi.Headquarters do
 
 	def run_missions(pid) do
 		GenServer.cast pid, :run_missions
+	end
+
+	def finished_mission(pid, mission_pid, branch_pid) do
+		GenServer.cast pid, {:finished_mission, mission_pid, branch_pid}
 	end
 
 	# Server Callbacks
@@ -102,14 +107,31 @@ defmodule Cingi.Headquarters do
 			[mission | queued_missions] = hq.queued_missions
 
 			branch_pid = get_branch(hq)
+			branch_missions = Map.get(hq.running_missions, branch_pid, []) ++ [mission]
 			Branch.run_mission(branch_pid, mission)
 
-			%Headquarters{hq | queued_missions: queued_missions}
+			%Headquarters{hq |
+				queued_missions: queued_missions,
+				running_missions: Map.put(hq.running_missions, branch_pid, branch_missions),
+			}
 		rescue
 			MatchError -> hq
 			RuntimeError -> hq
 		end
 		{:noreply, hq}
+	end
+
+	def handle_cast({:finished_mission, mission_pid, branch_pid}, hq) do
+		running = hq.running_missions
+			|> Map.get(branch_pid, [])
+			|> List.delete(mission_pid)
+
+		finished = Map.get(hq.running_missions, branch_pid, []) ++ [mission_pid]
+
+		{:noreply, %Headquarters{hq |
+			running_missions: Map.put(hq.running_missions, branch_pid, running),
+			finished_missions: Map.put(hq.finished_missions, branch_pid, finished),
+		}}
 	end
 
 	# Get branch with lowerst number of current missions to pass a mission along to

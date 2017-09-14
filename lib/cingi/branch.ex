@@ -240,6 +240,8 @@ defmodule Cingi.Branch do
 				branch.running_missions
 		end
 
+		Headquarters.finished_mission(branch.hq_pid, mission_pid, self())
+
 		{:noreply, %Branch{branch |
 			running_missions: running_missions,
 			finished_missions: branch.finished_missions ++ [mission_pid],
