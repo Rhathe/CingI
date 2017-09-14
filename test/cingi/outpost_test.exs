@@ -20,7 +20,7 @@ defmodule CingiOutpostTest do
 		assert %{nil: ^pid} = Outpost.get(pid).alternates |> Agent.get(&(&1))
 	end
 
-	test "alternates updates with new outposts" do
+	test "alternates do not update with new outposts" do
 		{:ok, pid1} = Outpost.start_link()
 		{:ok, pid2} = Outpost.start_link(original: pid1)
 
@@ -29,10 +29,10 @@ defmodule CingiOutpostTest do
 
 		assert pid1 != pid2
 		assert a1.alternates == a2.alternates
-		assert %{nil: ^pid2} = a1.alternates |> Agent.get(&(&1))
+		assert %{nil: ^pid1} = a1.alternates |> Agent.get(&(&1))
 	end
 
-	test "alternates gets outpost on same branch" do
+	test "alternates gets first outpost on same branch" do
 		{:ok, bpid} = Branch.start_link()
 		{:ok, pid1} = Outpost.start_link(branch_pid: bpid)
 		{:ok, pid2} = Outpost.start_link(original: pid1, branch_pid: bpid)
@@ -41,8 +41,8 @@ defmodule CingiOutpostTest do
 		outpost2 = Outpost.get_version_on_branch pid2, bpid
 
 		assert pid1 != pid2
-		assert pid2 == outpost1
-		assert pid2 == outpost2
+		assert pid1 == outpost1
+		assert pid1 == outpost2
 	end
 
 	test "alternates gets outpost on different branch" do

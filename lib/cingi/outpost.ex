@@ -59,7 +59,11 @@ defmodule Cingi.Outpost do
 
 	def get_or_create_version_on_branch(pid, branch_pid) do
 		case get_version_on_branch(pid, branch_pid) do
-			nil -> create_version_on_branch(pid, branch_pid)
+			nil ->
+				create_version_on_branch(pid, branch_pid)
+				# May have been created teice in a race condition,
+				# Get version that was created first
+				{:ok, get_version_on_branch(pid, branch_pid)}
 			x -> {:ok, x}
 		end
 	end
@@ -111,10 +115,6 @@ defmodule Cingi.Outpost do
 		GenServer.cast(pid, :update_alternates)
 	end
 
-	def update_parent(pid) do
-		GenServer.cast(pid, :update_parent)
-	end
-
 	# Server Callbacks
 
 	def init(opts) do
@@ -136,10 +136,20 @@ defmodule Cingi.Outpost do
 			node: Node.self,
 			branch_pid: opts[:branch_pid],
 			pid: self(),
-			setup_steps: outpost.plan["setup_steps"]
+			setup_steps: outpost.plan["setup_steps"],
+
+			# Branch synchronously creates new outposts and their versions,
+			# So outposts on a branch are created one at a time
+			# So if new version of parent needs to be created,
+			# it needs to be created atomically along with the new outpost itself
+			# to prevent race condition with outpost creation on branch
+			parent_pid: case {outpost.parent_pid, opts[:branch_pid]} do
+				{nil, _} -> nil
+				{_, nil} -> nil
+				{ppid, bpid} -> elem(Outpost.get_or_create_version_on_branch(ppid, bpid), 1)
+			end,
 		}
 
-		Outpost.update_parent(self())
 		Outpost.update_alternates(self())
 		{:ok, outpost}
 	end
@@ -163,16 +173,6 @@ defmodule Cingi.Outpost do
 		{:noreply, outpost}
 	end
 
-	def handle_cast(:update_parent, outpost) do
-		# Parent may not live on same branch, so create version of parent that does
-		{:ok, parent_pid} = case {outpost.parent_pid, outpost.branch_pid} do
-			{nil, _} -> {:ok, nil}
-			{_, nil} -> {:ok, nil}
-			{ppid, bpid} -> Outpost.get_or_create_version_on_branch(ppid, bpid)
-		end
-		{:noreply, %Outpost{outpost | parent_pid: parent_pid}}
-	end
-
 	def handle_cast(:update_alternates, outpost) do
 		{:ok, alternates} = case outpost.alternates do
 			nil -> Agent.start_link fn -> %{} end
@@ -180,7 +180,7 @@ defmodule Cingi.Outpost do
 		end
 
 		self_pid = self()
-		Agent.update(alternates, &(Map.put(&1, outpost.branch_pid, self_pid)))
+		Agent.update(alternates, &(Map.put_new(&1, outpost.branch_pid, self_pid)))
 
 		{:noreply, %Outpost{outpost | alternates: alternates}}
 	end
