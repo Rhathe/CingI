@@ -50,7 +50,11 @@ defmodule Cingi.Outpost do
 	end
 
 	def get_version_on_branch(pid, branch_pid) do
-		GenServer.call(pid, {:outpost_on_branch, branch_pid})
+		try do
+			GenServer.call(pid, {:outpost_on_branch, branch_pid})
+		catch
+			:exit, _ -> nil
+		end
 	end
 
 	def create_version_on_branch(pid, branch_pid) do
@@ -117,15 +121,20 @@ defmodule Cingi.Outpost do
 		outpost = case opts[:original] do
 			nil -> struct(Outpost, opts)
 			opid ->
-				o = Outpost.get opid
-				%Outpost{
-					name: o.name,
-					alternates: o.alternates,
-					parent_pid: o.parent_pid,
-					plan: o.plan,
-					root_mission_pid: o.root_mission_pid,
-					setup_steps: o.setup_steps
-				}
+				try do
+					o = Outpost.get opid
+					%Outpost{
+						name: o.name,
+						alternates: o.alternates,
+						parent_pid: o.parent_pid,
+						plan: o.plan,
+						root_mission_pid: o.root_mission_pid,
+						setup_steps: o.setup_steps
+					}
+				catch
+					# FIXME: Make a blank outpost with bad seup steps instead to fail fast
+					:exit, _ -> struct(Outpost, opts)
+				end
 		end
 
 		outpost = %Outpost{outpost |

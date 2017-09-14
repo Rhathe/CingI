@@ -388,8 +388,14 @@ defmodule Cingi.Mission do
 	end
 
 	def handle_call(:get_outpost, _from, mission) do
-		field_agent = FieldAgent.get(mission.field_agent_pid)
-		{:reply, field_agent.outpost_pid, mission}
+		outpost_pid = try do
+			field_agent = FieldAgent.get(mission.field_agent_pid)
+			field_agent.outpost_pid
+		catch
+			:exit, _ -> nil
+		end
+
+		{:reply, outpost_pid, mission}
 	end
 
 	def handle_call(:get_outpost_plan, _from, mission) do
