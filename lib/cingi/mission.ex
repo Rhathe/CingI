@@ -176,7 +176,7 @@ defmodule Cingi.Mission do
 
 		mission_pid = mission.supermission_pid
 
-		if mission_pid do Mission.initialized_submission(mission_pid, self()) end
+		Mission.initialized_submission(mission_pid, self())
 		MissionReport.initialized_mission(mission.report_pid, self())
 
 		{:noreply, mission}

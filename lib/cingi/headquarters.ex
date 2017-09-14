@@ -10,6 +10,7 @@ defmodule Cingi.Headquarters do
 
 	alias Cingi.Headquarters
 	alias Cingi.Branch
+	alias Cingi.Mission
 	use GenServer
 
 	defstruct [
@@ -39,8 +40,9 @@ defmodule Cingi.Headquarters do
 
 	def link_branch(pid, branch_pid) do
 		# May be passed in name, so get real pid while still in same node
-		true_branch_pid = Branch.get(branch_pid).pid
-		GenServer.call pid, {:link_branch, true_branch_pid}
+		branch = Branch.get(branch_pid)
+		true_branch_pid = branch.pid
+		GenServer.call pid, {:link_branch, true_branch_pid, Node.self}
 	end
 
 	def terminate_branches(pid) do
@@ -83,7 +85,8 @@ defmodule Cingi.Headquarters do
 		{:reply, hq, hq}
 	end
 
-	def handle_call({:link_branch, branch_pid}, _from, hq) do
+	def handle_call({:link_branch, branch_pid, branch_node}, _from, hq) do
+		Node.monitor branch_node, true
 		hq = %Headquarters{hq | branch_pids: hq.branch_pids ++ [branch_pid]}
 		Branch.link_headquarters(branch_pid, self())
 		{:reply, hq, hq}
@@ -134,6 +137,20 @@ defmodule Cingi.Headquarters do
 		}}
 	end
 
+	def handle_info({:nodedown, _}, hq) do
+		{up, _} = hq.branch_pids |> Enum.split_with(&GenServer.whereis/1)
+		{running, stopped} = hq.running_missions |> Map.split(up)
+		stopped
+			|> Enum.map(&(elem(&1, 1)))
+			|> List.flatten
+			|> Enum.map(&(Mission.send_result(&1, %{status: 221}, &1)))
+
+		{:noreply, %Headquarters{
+			branch_pids: up,
+			running_missions: running,
+		}}
+	end
+
 	# Get branch with lowerst number of current missions to pass a mission along to
 	def get_branch(hq) do
 		get_all_branches(hq)
@@ -144,6 +161,6 @@ defmodule Cingi.Headquarters do
 
 	# Get all branches that are currently still alive
 	def get_all_branches(hq) do
-		hq.branch_pids |> Enum.filter(&(GenServer.whereis(&1)))
+		hq.branch_pids |> Enum.filter(&GenServer.whereis/1)
 	end
 end
