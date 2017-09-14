@@ -6,7 +6,10 @@ defmodule Cingi.Mixfile do
 			app: :cingi,
 			version: "0.1.0",
 			elixir: "~> 1.5",
-			escript: [main_module: Cingi.CLI],
+			escript: [
+				main_module: Cingi.CLI,
+				emu_args: "-noinput",
+			],
 			start_permanent: Mix.env == :prod,
 			deps: deps()
 		]
