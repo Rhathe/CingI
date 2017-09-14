@@ -11,6 +11,7 @@ defmodule Cingi.Headquarters do
 	alias Cingi.Headquarters
 	alias Cingi.Branch
 	alias Cingi.Mission
+	alias Cingi.MissionReport
 	use GenServer
 
 	defstruct [
@@ -57,8 +58,8 @@ defmodule Cingi.Headquarters do
 		GenServer.cast pid, :run_missions
 	end
 
-	def finished_mission(pid, mission_pid, branch_pid) do
-		GenServer.cast pid, {:finished_mission, mission_pid, branch_pid}
+	def finished_mission(pid, mission_pid, result, branch_pid) do
+		GenServer.cast pid, {:finished_mission, mission_pid, result, branch_pid}
 	end
 
 	# Server Callbacks
@@ -124,7 +125,17 @@ defmodule Cingi.Headquarters do
 		{:noreply, hq}
 	end
 
-	def handle_cast({:finished_mission, mission_pid, branch_pid}, hq) do
+	def handle_cast({:finished_mission, mission_pid, result, branch_pid}, hq) do
+		mission = Mission.get(mission_pid)
+		super_pid = mission.supermission_pid
+		report_pid = mission.report_pid
+
+		cond do
+			super_pid -> Mission.send_result(super_pid, result, mission_pid)
+			report_pid -> MissionReport.finished_mission(report_pid, mission_pid)
+			true -> :ok
+		end
+
 		running = hq.running_missions
 			|> Map.get(branch_pid, [])
 			|> List.delete(mission_pid)
@@ -138,12 +149,16 @@ defmodule Cingi.Headquarters do
 	end
 
 	def handle_info({:nodedown, _}, hq) do
-		{up, _} = hq.branch_pids |> Enum.split_with(&GenServer.whereis/1)
+		self_pid = self()
+		{up, _} = get_all_branches(hq, false)
 		{running, stopped} = hq.running_missions |> Map.split(up)
 		stopped
 			|> Enum.map(&(elem(&1, 1)))
 			|> List.flatten
-			|> Enum.map(&(Mission.send_result(&1, %{status: 221}, &1)))
+			|> Enum.map(fn (m) ->
+				Mission.send_result(m, %{status: 221}, m)
+				Headquarters.finished_mission(self_pid, m, %{status: 221}, nil)
+			end)
 
 		{:noreply, %Headquarters{
 			branch_pids: up,
@@ -160,7 +175,19 @@ defmodule Cingi.Headquarters do
 	end
 
 	# Get all branches that are currently still alive
-	def get_all_branches(hq) do
-		hq.branch_pids |> Enum.filter(&GenServer.whereis/1)
+	def get_all_branches(hq, get_running_only \\ true) do
+		hq.branch_pids
+			|> Enum.split_with(fn b ->
+				case :rpc.pinfo(b) do
+					{:badrpc, _} -> false
+					_ -> true
+				end
+			end)
+			|> (fn({up, down}) ->
+				case get_running_only do
+					true -> up
+					false -> {up, down}
+				end
+			end).()
 	end
 end

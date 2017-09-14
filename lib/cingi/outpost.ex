@@ -59,11 +59,7 @@ defmodule Cingi.Outpost do
 
 	def get_or_create_version_on_branch(pid, branch_pid) do
 		case get_version_on_branch(pid, branch_pid) do
-			nil ->
-				create_version_on_branch(pid, branch_pid)
-				# May have been created teice in a race condition,
-				# Get version that was created first
-				{:ok, get_version_on_branch(pid, branch_pid)}
+			nil -> create_version_on_branch(pid, branch_pid)
 			x -> {:ok, x}
 		end
 	end

@@ -1,6 +1,5 @@
 defmodule Cingi.Branch do
 	alias Cingi.Branch
-	alias Cingi.FieldAgent
 	alias Cingi.Headquarters
 	alias Cingi.Outpost
 	alias Cingi.Mission
@@ -39,11 +38,11 @@ defmodule Cingi.Branch do
 	end
 
 	def run_mission(pid, mission) do
-		GenServer.cast(pid, {:run_mission, mission})
+		GenServer.cast(pid, {:run_mission, mission, Node.self})
 	end
 
-	def send_mission_to_outpost(pid, mission_pid) do
-		GenServer.cast(pid, {:outpost_for_mission, mission_pid})
+	def send_mission_to_outpost(pid, mission_pid, alternates_node) do
+		GenServer.cast(pid, {:outpost_for_mission, mission_pid, alternates_node})
 	end
 
 	def mission_has_run(pid, mission_pid) do
@@ -161,8 +160,8 @@ defmodule Cingi.Branch do
 		{:noreply, branch}
 	end
 
-	def handle_cast({:run_mission, mission}, branch) do
-		Branch.send_mission_to_outpost(self(), mission)
+	def handle_cast({:run_mission, mission, alternates_node}, branch) do
+		Branch.send_mission_to_outpost(self(), mission, alternates_node)
 		branch = %Branch{branch | started_missions: branch.started_missions ++ [mission]}
 		{:noreply, branch}
 	end
@@ -171,7 +170,7 @@ defmodule Cingi.Branch do
 	# Because a Mission could have initialized at a different Branch
 	# than the one currently running it, so the outpost that's retrieved
 	# should be the one on the same node as the Branch running the mission
-	def handle_cast({:outpost_for_mission, mission_pid}, branch) do
+	def handle_cast({:outpost_for_mission, mission_pid, alternates_node}, branch) do
 		mission = Mission.get(mission_pid)
 
 		# The parent outpost process is either the outpost of its supermission
@@ -191,6 +190,7 @@ defmodule Cingi.Branch do
 			plan: Mission.get_outpost_plan(mission_pid),
 			parent_pid: base_outpost,
 			root_mission_pid: mission_pid,
+			alternates: elem(:rpc.call(alternates_node, Agent, :start_link, [fn -> %{} end]), 1),
 		]
 
 		# See if mission has an outpost configuration
@@ -220,27 +220,15 @@ defmodule Cingi.Branch do
 	end
 
 	def handle_cast({:mission_has_finished, mission_pid, result}, branch) do
-		mission = Mission.get(mission_pid)
-		super_pid = mission.supermission_pid
-		report_pid = mission.report_pid
-
-		cond do
-			super_pid ->
-				smission = Mission.get(super_pid)
-				FieldAgent.send_result(smission.field_agent_pid, result, mission_pid)
-			report_pid -> MissionReport.finished_mission(report_pid, mission_pid)
-			true -> :ok
-		end
-
 		running_missions = cond do
 			mission_pid in branch.running_missions ->
 				List.delete(branch.running_missions, mission_pid)
 			true ->
-				IO.puts :stderr, "Mission finished but not ran #{inspect(mission)}"
+				IO.puts :stderr, "Mission finished but not ran #{inspect(Mission.get(mission_pid))}"
 				branch.running_missions
 		end
 
-		Headquarters.finished_mission(branch.hq_pid, mission_pid, self())
+		Headquarters.finished_mission(branch.hq_pid, mission_pid, result, self())
 
 		{:noreply, %Branch{branch |
 			running_missions: running_missions,
