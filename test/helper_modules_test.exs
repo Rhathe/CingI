@@ -97,7 +97,7 @@ defmodule Helper do
 		res = Helper.create_mission_report([file: plan])
 		Headquarters.resume(res[:hq_pid])
 		mission = Helper.wait_for_finished(res[:mission_pid])
-		[output: get_output(mission), res: res]
+		[output: get_output(mission), exit_code: mission.exit_code, res: res]
 	end
 
 	def get_output(mission) do

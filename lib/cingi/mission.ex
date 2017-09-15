@@ -217,7 +217,10 @@ defmodule Cingi.Mission do
 			and (length(exit_codes) != mission.submissions_num)
 
 		exit_code = cond do
+			# Must not have any submissions, use whatever result is given
 			length(exit_codes) == 0 -> result.status
+
+			# Still needs to gather all exit_codes
 			more_submissions? -> nil
 
 			# Get last exit code if missions are sequential

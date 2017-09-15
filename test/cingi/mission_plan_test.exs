@@ -130,6 +130,8 @@ defmodule CingiMissionPlansTest do
 			"runs because of outputs",
 			"runs regardless",
 		] = Enum.sort([a, b, c, d])
+
+		assert 0 = mission.exit_code
 	end
 
 	describe "runs outputs file" do
