@@ -97,14 +97,6 @@ defmodule Cingi.Mission do
 		GenServer.call(pid, :get_outpost_plan)
 	end
 
-	def get_mission_plan_template(pid, key) do
-		case {pid, key} do
-			{nil, _} -> %{}
-			{_, nil} -> %{}
-			_ -> GenServer.call(pid, {:get_mission_plan_template, key})
-		end
-	end
-
 	def get_output(pid, selector \\ nil) do
 		case pid do
 			nil -> []
@@ -220,9 +212,6 @@ defmodule Cingi.Mission do
 			# Must not have any submissions, use whatever result is given
 			length(exit_codes) == 0 -> result.status
 
-			# Still needs to gather all exit_codes
-			more_submissions? -> nil
-
 			# Get last exit code if missions are sequential
 			is_list(mission.submissions) ->
 				[head | _] = Enum.reverse(exit_codes)
@@ -242,15 +231,15 @@ defmodule Cingi.Mission do
 
 		# If submissions have not finished then more should be queued up
 		# Else tell the field agent that the mission is finished
-		{finished, running} = cond do
+		{finished, running, exit_code} = cond do
 			mission.finished ->
-				{true, false}
+				{true, false, mission.exit_code}
 			more_submissions? ->
 				Mission.run_submissions(self(), finished_mpid)
-				{false, true}
+				{false, true, nil}
 			true ->
 				FieldAgent.mission_has_finished(mission.field_agent_pid, result)
-				{true, false}
+				{true, false, exit_code}
 		end
 
 		{:noreply, %Mission{mission |
@@ -403,22 +392,13 @@ defmodule Cingi.Mission do
 
 	def handle_call(:get_outpost_plan, _from, mission) do
 		# FIXME: Currently does not work correctly on edge case
-		# where mission extends another mission
+		# where mission extends a template or file
 		# and the mission_template defines an outpost plan
 		plan = case mission.mission_plan do
 			%{"outpost" => plan} -> plan
 			_ -> nil
 		end
 		{:reply, plan, mission}
-	end
-
-	def handle_call({:get_mission_plan_template, key}, _from, mission) do
-		templates = mission.mission_plan_templates || %{}
-		template = case Map.has_key?(templates, key) do
-			true -> templates[key]
-			false -> Mission.get_mission_plan_template(mission.supermission_pid, key)
-		end
-		{:reply, template, mission}
 	end
 
 	##################

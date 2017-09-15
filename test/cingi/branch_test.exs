@@ -213,12 +213,12 @@ defmodule CingiBranchTest do
 	end
 
 	test "gets correct exit codes fails fast when necessary" do
-		res = Helper.create_mission_report([file: "test/mission_plans/exits.plan"])
+		res = Helper.create_mission_report([file: "test/mission_plans/exits.yaml"])
 		bpid = res[:branch_pid]
 		mpid = res[:mission_pid]
 		Headquarters.resume(res[:hq_pid])
 
-		branch = Helper.wait_for_finished_missions(bpid, 11)
+		branch = Helper.wait_for_finished_missions(bpid, 12)
 		assert length(branch.started_missions) == 0
 
 		# non-fail fast ncat task, its parent,
@@ -227,23 +227,23 @@ defmodule CingiBranchTest do
 
 		# 1 sequential supermission
 		# 2 submissions below that
-		# 4 sequential missions (fail_fast doesn't matter with sequential)
+		# 5 sequential missions
 		# 1 fail fast parallel supermission
 		# 2 fail fast parallel missions
 		# 1 non-fail fast parallel mission
-		assert length(branch.finished_missions) == 11
+		assert length(branch.finished_missions) == 12
 
 		Porcelain.exec("bash", [ "-c", "echo -n endncat | ncat localhost 9991"])
 		Helper.check_exit_code mpid
 
 		mission = Mission.get(mpid)
-		assert 137 = mission.exit_code
+		assert 7 = mission.exit_code
 
 		output = mission.output |>
 			Enum.map(&(&1[:data]))
 
-		assert [a, b, "endncat"] = output
-		l1 = Enum.sort(["seq_continue\n", "seq_fail_fast\n"])
-		assert ^l1 = Enum.sort([a, b])
+		assert [a, b, c, "endncat"] = output
+		l1 = Enum.sort(["seq_continue\n", "Should still be in seq_continue\n", "seq_fail_fast\n"])
+		assert ^l1 = Enum.sort([a, b, c])
 	end
 end

@@ -11,7 +11,7 @@ defmodule CingiFailFastPlanTest do
 		end
 
 		test "right exit_code", ctx do
-			assert 137 = ctx.exit_code
+			assert 5 = ctx.exit_code
 		end
 	end
 end

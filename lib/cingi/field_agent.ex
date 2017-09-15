@@ -83,8 +83,8 @@ defmodule Cingi.FieldAgent do
 			_ -> %{"missions" => plan}
 		end
 
-		case {next_mpid, new_plan["extend_mission_plan"]} do
-			{_, %{"file" => file}} ->
+		case {next_mpid, new_plan} do
+			{_, %{"extends_file" => file}} ->
 				outpost = Outpost.get(field_agent.outpost_pid)
 				branch_pid = outpost.branch_pid
 				mission = Mission.get(from_pid)
@@ -93,15 +93,19 @@ defmodule Cingi.FieldAgent do
 			# No more mpids to request from, construct from new_plan regardless
 			{nil, _} -> FieldAgent.finish_mission_plan(self())
 
-			# No more extending, construct_ from new_plan
-			{_, nil} -> FieldAgent.finish_mission_plan(self())
-
 			# If a key does exist, request for the template with given key from the given mpid
-			{mpid, %{"key" => key}} -> Mission.request_mission_plan(mpid, key, self())
-			{mpid, key} -> Mission.request_mission_plan(mpid, key, self())
+			{mpid, %{"extends_template" => key}} -> Mission.request_mission_plan(mpid, key, self())
+
+			# No more extending, construct_ from new_plan
+			_ -> FieldAgent.finish_mission_plan(self())
+
 		end
 
-		{:noreply, %FieldAgent{field_agent | constructed_plan: new_plan |> Map.delete("extend_mission_plan")}}
+		new_plan = new_plan
+			|> Map.delete("extends_template")
+			|> Map.delete("extends_file")
+
+		{:noreply, %FieldAgent{field_agent | constructed_plan: new_plan}}
 	end
 
 	def handle_cast({:queue_other_field_agent_on_outpost_of_branch, file, callback_fa_pid, branch_pid}, field_agent) do

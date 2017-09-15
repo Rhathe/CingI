@@ -1,0 +1,31 @@
+mission_plan_templates:
+  one:
+    mission_plan_templates:
+      two:
+        missions: echo onetwo
+    missions:
+      - echo one
+      - extends_template: two
+      - extends_template: three
+  two:
+    missions: echo two
+  three:
+    missions: echo three
+  four: echo four
+  finished_plan:
+    missions: echo nested_complete
+missions:
+  - extends_template: one
+  - missions:
+      - extends_template: two
+  - extends_template: four
+    mission_plan_templates:
+      four: echo "four shouldn't be here"
+  - mission_plan_templates:
+      nested_plan:
+        extends_template: finished_plan
+    missions:
+      - extends_template: nested_plan
+  - echo "premature end"
+  - extends_template: no_mission_plan
+  - echo "unreachable end"

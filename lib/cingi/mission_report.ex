@@ -90,6 +90,7 @@ defmodule Cingi.MissionReport do
 			err ->
 				IO.puts :stderr, "Error parsing yaml: #{yaml}"
 				IO.puts :stderr, inspect(err)
+				%{}
 		end
 	end
 
