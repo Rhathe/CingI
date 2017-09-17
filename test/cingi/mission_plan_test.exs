@@ -107,33 +107,6 @@ defmodule CingiMissionPlansTest do
 		end
 	end
 
-	test "runs when file" do
-		res = Helper.create_mission_report([file: "test/mission_plans/when.plan"])
-		Headquarters.resume(res[:hq_pid])
-		mission = Helper.wait_for_finished(res[:mission_pid])
-		output = mission.output
-			|> Enum.map(&(&1[:data]))
-			|> Enum.join("\n")
-			|> String.split("\n", trim: true)
-
-		assert [
-			"first",
-			"second",
-			a, b, c, d,
-			"runs because parallel group exited with 0",
-			"end",
-		]  = output
-
-		assert [
-			"runs because of exit code 1",
-			"runs because of failure",
-			"runs because of outputs",
-			"runs regardless",
-		] = Enum.sort([a, b, c, d])
-
-		assert 0 = mission.exit_code
-	end
-
 	describe "runs outputs file" do
 		setup do
 			res = Helper.create_mission_report([file: "test/mission_plans/outputs.plan"])

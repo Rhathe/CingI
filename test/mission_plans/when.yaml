@@ -17,12 +17,12 @@ missions:
             when:
               exit_codes:
                 - 0
-            missions: echo "should not run because exit code 0"
+            missions: echo "should not run because not exit code 0"
 
           success_with_success:
             when:
               success: true
-            missions: echo "should not run because success"
+            missions: echo "should not run because not success"
 
           fail_without_success:
             when:
@@ -33,13 +33,13 @@ missions:
             when:
               outputs:
                 - second
-            missions: echo "runs because of outputs"
+            missions: echo "runs because of second in outputs"
 
           fail_without_outputs:
             when:
               outputs:
                 - first
-            missions: echo "should not run because of outputs"
+            missions: echo "should not run because of no first in outputs"
 
       - missions:
           success_of_whens:
