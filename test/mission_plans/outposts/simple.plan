@@ -17,7 +17,7 @@ missions:
             ENV3: $SETUP['env2val']
             $SETUP['missingkey']: missing_val
             MISSING_KEY: $SETUP['missingval']
-          setup_steps:
+          setup:
             - >
                 echo "{
                 \"dir\": \"/tmp\",

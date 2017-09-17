@@ -21,7 +21,7 @@ defmodule Cingi.Outpost do
 		parent_pid: nil,
 		root_mission_pid: nil,
 
-		setup_steps: nil,
+		setup: nil,
 		alternates: nil,
 
 		plan: %{},
@@ -129,7 +129,7 @@ defmodule Cingi.Outpost do
 						parent_pid: o.parent_pid,
 						plan: o.plan,
 						root_mission_pid: o.root_mission_pid,
-						setup_steps: o.setup_steps
+						setup: o.setup
 					}
 				catch
 					# FIXME: Make a blank outpost with bad seup steps instead to fail fast
@@ -141,7 +141,7 @@ defmodule Cingi.Outpost do
 			node: Node.self,
 			branch_pid: opts[:branch_pid],
 			pid: self(),
-			setup_steps: outpost.plan["setup_steps"],
+			setup: outpost.plan["setup"],
 
 			# Branch synchronously creates new outposts and their versions,
 			# So outposts on a branch are created one at a time
@@ -214,15 +214,15 @@ defmodule Cingi.Outpost do
 		outpost = case outpost.setting_up do
 			true -> outpost
 			false ->
-				case {outpost.setup_steps, outpost.parent_pid} do
+				case {outpost.setup, outpost.parent_pid} do
 					{nil, nil} -> Outpost.report_has_finished(self(), nil, nil)
-					{setup_steps, _} ->
-						setup_steps = setup_steps || [":"]
+					{setup, _} ->
+						setup = setup || [":"]
 						root_mission = Mission.get(outpost.root_mission_pid)
 
 						yaml_opts = [
 							prev_mission_pid: root_mission.prev_mission_pid,
-							map: %{"missions" => setup_steps},
+							map: %{"missions" => setup},
 							outpost_pid: self(),
 						]
 						Branch.queue_report outpost.branch_pid, yaml_opts

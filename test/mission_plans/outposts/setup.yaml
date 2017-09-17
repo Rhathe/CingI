@@ -1,5 +1,5 @@
 outpost:
-  setup_steps:
+  setup:
     - echo "top setup"
     - "echo \"top setup TMP_DIR_1: $TMP_DIR_1\""
     - "echo \"top setup TMP_DIR_2: $TMP_DIR_2\""
@@ -18,7 +18,7 @@ missions:
       env:
         TMP_DIR_2: $SETUP['dir']
         TMP_DIR_3: first_override
-      setup_steps:
+      setup:
         - echo "middle setup"
         - "pwd | xargs echo 'middle setup pwd:' "
         - "echo \"echo inside_tmp_dir\" > tmpecho.sh"
@@ -30,7 +30,7 @@ missions:
       - outpost:
           env:
             TMP_DIR_3: second_override
-          setup_steps:
+          setup:
             - echo "bottom setup"
             - "pwd | xargs echo 'bottom setup pwd:' "
             - "echo \"bottom setup TMP_DIR_1: $TMP_DIR_1\""

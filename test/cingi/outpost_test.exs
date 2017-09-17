@@ -9,7 +9,7 @@ defmodule CingiOutpostTest do
 		assert %{
 			name: nil,
 			is_setup: false,
-			setup_steps: nil,
+			setup: nil,
 			branch_pid: nil,
 			node: :"nonode@nohost",
 		} = Outpost.get(pid)

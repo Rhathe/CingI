@@ -7,14 +7,14 @@
     \"repo\": \"$REMOTE_REPO\"
     }"
 - outpost:
-    setup_steps: cat
+    setup: cat
     env:
       UUID: $SETUP['uuid']
       REMOTE_REPO: $SETUP['repo']
   missions:
     - outpost:
         dir: $SETUP['dir']
-        setup_steps:
+        setup:
           - mktemp -d --suffix GITCLONE
           - read TMP_DIR; git clone "$REMOTE_REPO" "$TMP_DIR/repo"; echo $TMP_DIR
           - "read TMP_DIR; echo \"{\\\"dir\\\": \\\"$TMP_DIR/repo\\\"}\""

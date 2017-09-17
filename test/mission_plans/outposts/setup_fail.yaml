@@ -1,10 +1,10 @@
 outpost:
-  setup_steps:
+  setup:
     - echo "{}"; exit 0
 missions:
   - echo "should run"
   - outpost:
-     setup_steps:
+     setup:
       - echo "{}"; exit 7
     missions: echo "should not run"
   - echo "should also not run"

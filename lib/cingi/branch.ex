@@ -180,7 +180,9 @@ defmodule Cingi.Branch do
 			nil ->
 				case MissionReport.get(mission.report_pid).outpost_pid do
 					nil -> nil
-					opid -> Outpost.get(opid).parent_pid
+					opid ->
+						o = Outpost.get(opid)
+						if o.is_setup do opid else o.parent_pid end
 				end
 			supermission -> Mission.get_outpost(supermission)
 		end
