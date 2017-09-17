@@ -1,3 +1,2 @@
 - echo "git@github.com:Rhathe/CingI.git"
-- extend_mission_plan:
-    file: test/gitclone.yaml
+- extends_file: test/gitclone.yaml

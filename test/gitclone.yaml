@@ -19,5 +19,4 @@
           - read TMP_DIR; git clone "$REMOTE_REPO" "$TMP_DIR/repo"; echo $TMP_DIR
           - "read TMP_DIR; echo \"{\\\"dir\\\": \\\"$TMP_DIR/repo\\\"}\""
       missions:
-        - extend_mission_plan:
-            file: .cingi.yaml
+        - extends_file: .cingi.yaml

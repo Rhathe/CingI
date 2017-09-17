@@ -1,0 +1,19 @@
+mission_plan_templates:
+  one:
+    extends_file: test/mission_plans/extends/file_1.yaml
+  two: echo two
+missions:
+  - outpost:
+      setup_steps:
+        - bash test/bash_scripts/tmpdir.sh
+      dir: $SETUP['dir']
+      env:
+        OLD_DIR: $SETUP['old_dir']
+    missions:
+      - outpost:
+          setup_steps:
+            - "cp \"$OLD_DIR/test/mission_plans/extends/file_2.yaml\" ./test_tmp_extends.yaml"
+        missions:
+          - extends_file: test_tmp_extends.yaml
+          - extends_template: one
+          - extends_template: two
