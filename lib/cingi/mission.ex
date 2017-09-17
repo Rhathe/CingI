@@ -426,22 +426,39 @@ defmodule Cingi.Mission do
 		w = mission.when
 
 		case {w, mission.prev_mission_pid} do
+			# Don't skip if no when conditions
 			{nil, _} -> false
+
+			# Don't skip if conditions are empty
+			{[], _} -> false
+
+			# Skip if there are conditions but no previous mission to base it on
 			{_, nil} -> true
-			{w, prev_pid} ->
+
+			# Check when when conditions are list
+			{[_|_], prev_pid} ->
 				prev = Mission.get(prev_pid)
 				output = prev.output
 					|> Enum.map(&(&1[:data]))
 					|> Enum.join("")
 					|> String.trim()
 
-				cond do
-					prev.exit_code in Map.get(w, "exit_codes", []) -> false
-					output in Map.get(w, "outputs", []) -> false
-					prev.exit_code == 0 and Map.get(w, "success") == true -> false
-					prev.exit_code > 0 and Map.get(w, "success") == false -> false
-					true -> true
-				end
+				Enum.reduce_while(w, false, fn wcond, acc ->
+					[exit_codes, outputs] = ["exit_codes", "outputs"]
+						|> Enum.map(&(Map.get(wcond, &1, [])))
+						|> Enum.map(&(if is_list(&1) do &1 else [&1] end))
+
+					check? = acc or cond do
+						prev.exit_code in exit_codes -> false
+						output in outputs -> false
+						prev.exit_code == 0 and Map.get(wcond, "success") == true -> false
+						prev.exit_code > 0 and Map.get(wcond, "success") == false -> false
+						true -> true
+					end
+
+					if check? do {:halt, true} else {:cont, false} end
+				end)
+			_ -> true
 		end
 	end
 

@@ -7,7 +7,7 @@ defmodule CingiWhenTest do
 		end
 
 		test "runs correct amount of output", ctx do
-			assert 8 = length(ctx.output)
+			assert 9 = length(ctx.output)
 		end
 
 		test "things that should not run don't run", ctx do
@@ -35,6 +35,11 @@ defmodule CingiWhenTest do
 		test "runs correct output for output", ctx do
 			assert "runs because of second in outputs" in ctx.output
 			assert "should not run because of no first in outputs" not in ctx.output
+		end
+
+		test "runs correct output for multiple conditions", ctx do
+			assert "runs because of second in outputs and exit code of 1" in ctx.output
+			assert "should not run because although second in outputs, exit_code is not 2" not in ctx.output
 		end
 
 		test "runs correct output for parallel group", ctx do

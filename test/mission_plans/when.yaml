@@ -9,47 +9,58 @@ missions:
 
           success_with_exit_code:
             when:
-              exit_codes:
-                - 1
+              - exit_codes:
+                  - 1
             missions: echo "runs because of exit code 1"
 
           fail_with_exit_code:
             when:
-              exit_codes:
-                - 0
+              - exit_codes:
+                  - 0
             missions: echo "should not run because not exit code 0"
 
           success_with_success:
             when:
-              success: true
+              - success: true
             missions: echo "should not run because not success"
 
           fail_without_success:
             when:
-              success: false
+              - success: false
             missions: echo "runs because of failure"
 
           success_with_output:
             when:
-              outputs:
-                - second
+              - outputs:
+                  - second
             missions: echo "runs because of second in outputs"
 
           fail_without_outputs:
             when:
-              outputs:
-                - first
+              - outputs:
+                  - first
             missions: echo "should not run because of no first in outputs"
 
+          success_with_multiple_conditions:
+            when:
+              - outputs: second
+              - exit_codes: 1
+            missions: echo "runs because of second in outputs and exit code of 1"
+
+          fail_with_multple_conditions:
+            when:
+              - outputs: second
+              - exit_codes: 2
+            missions: echo "should not run because although second in outputs, exit_code is not 2"
       - missions:
           success_of_whens:
             when:
-              exit_codes:
-                - 0
+              - exit_codes:
+                  - 0
             missions: echo "runs because parallel group exited with 0"
 
           failure_of_whens:
             when:
-              success: false
+              - success: false
             missions: echo "should not run because parallel group was success"
   - echo end
