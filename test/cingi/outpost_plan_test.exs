@@ -215,4 +215,18 @@ defmodule CingiOutpostPlansTest do
 			assert "inside_tmp_dir" = Enum.at(ctx.output, 9)
 		end
 	end
+
+	describe "setup fail outpost plan" do
+		setup do
+			Helper.run_mission_report("test/mission_plans/outposts/setup_fail.yaml")
+		end
+
+		test "right output", ctx do
+			assert ["should run"] = ctx.output
+		end
+
+		test "right exit code", ctx do
+			assert 137 = ctx.exit_code
+		end
+	end
 end

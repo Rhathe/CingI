@@ -233,9 +233,6 @@ defmodule Cingi.Outpost do
 	end
 
 	def handle_cast({:queue_field_agent, queued_fa_tup}, outpost) do
-		fa_pid = elem(queued_fa_tup, 1)
-		if outpost.setup_failed do FieldAgent.stop(fa_pid) end
-
 		outpost = case outpost.is_setup do
 			true ->
 				run_field_agent(queued_fa_tup, outpost)
@@ -320,14 +317,14 @@ defmodule Cingi.Outpost do
 		outpost = %Outpost{outpost |
 			dir: dir || ".",
 			env: env,
+			is_setup: true,
+			setting_up: false,
+			setup_failed: setup_failed,
 		}
 
 		Enum.map(outpost.queued_field_agents, &(run_field_agent(&1, outpost)))
 
 		{:noreply, %Outpost{outpost |
-			is_setup: true,
-			setting_up: false,
-			setup_failed: setup_failed,
 			queued_field_agents: [],
 		}}
 	end
@@ -336,8 +333,11 @@ defmodule Cingi.Outpost do
 	# HELPERS #
 	###########
 
-	def run_field_agent({:bash_process, fa_pid}, _outpost) do
-		FieldAgent.run_bash_process fa_pid
+	def run_field_agent({:bash_process, fa_pid}, outpost) do
+		case outpost.setup_failed do
+			false -> FieldAgent.run_bash_process fa_pid
+			true -> FieldAgent.stop fa_pid
+		end
 	end
 
 	def run_field_agent({:mission_plan, fa_pid, file}, outpost) do
