@@ -42,6 +42,7 @@ defmodule Cingi.Mixfile do
 			{:yaml_elixir, "~> 1.3.1"},
 			{:temp, "~> 0.4"},
 			{:gproc, "~> 0.5.0"},
+			{:ex_doc, ">= 0.0.0", only: :dev},
 		]
 	end
 
