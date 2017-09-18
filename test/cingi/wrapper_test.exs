@@ -91,11 +91,11 @@ defmodule WrapperTest do
 	end
 
 	defp exec(cmds, input \\ nil) do
-		Porcelain.exec("priv/bin/wrapper.sh", cmds, in: input)
+		Porcelain.exec("./priv/bin/wrapper.sh", cmds, in: input)
 	end
 
 	defp _spawn(cmds, input \\ nil) do
-		Porcelain.spawn("priv/bin/wrapper.sh", cmds, in: input)
+		Porcelain.spawn("./priv/bin/wrapper.sh", cmds, in: input)
 	end
 
 	defp is_running(cmd) do

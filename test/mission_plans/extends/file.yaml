@@ -17,3 +17,6 @@ missions:
           - extends_file: test_tmp_extends.yaml
           - extends_template: one
           - extends_template: two
+          - rm test_tmp_extends.yaml
+      - rm tmpdir.sh
+      - rmdir `pwd`

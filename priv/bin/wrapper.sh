@@ -2,6 +2,19 @@
 
 set -m
 
+# Had to make this script a temp file because
+# escripts aren't packaged with the priv directory
+# yet erlang still requires a wrapper to prevent zombie processes
+# So this current script is always made temporarily
+# and also needs to be cleaned up, unless it's being
+# used in a test directly, in which case,
+# don't delete
+if [[ "$0" =~ "priv/bin/wrapper.sh" ]]; then
+	:
+else
+	rm "$0" > /dev/null 2>&1
+fi
+
 cmd=$1
 file="$2"
 del_tmp_file="$3"

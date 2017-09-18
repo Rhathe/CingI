@@ -20,6 +20,10 @@ defmodule Cingi.FieldAgent do
 		constructed_plan: %{},
 	]
 
+
+	@external_resource "priv/bin/wrapper.sh"
+	@wrapper_contents File.read! "priv/bin/wrapper.sh"
+
 	# Client API
 
 	def start_link(args \\ []) do
@@ -150,7 +154,6 @@ defmodule Cingi.FieldAgent do
 		proc = case mission.finished do
 			true -> nil
 			false ->
-				script = "./priv/bin/wrapper.sh"
 				{input_file, is_tmp} = init_input_file(mission)
 
 				cmds = [mission.cmd] ++ case input_file do
@@ -169,11 +172,22 @@ defmodule Cingi.FieldAgent do
 				env = convert_env(outpost.env)
 				dir = outpost.dir
 
+				# Create wrapper file temporarily,
+				# will get cleaned up by itself
+				# Necessary in distribution of escript,
+				# escripts don't support priv folder
+				{:ok, fd, script} = Temp.open
+				IO.write fd, @wrapper_contents
+				File.close fd
+				System.cmd "chmod", ["+x", script]
+
 				try do
 					Porcelain.spawn(script, cmds, dir: dir, env: env, in: :receive, out: {:send, self()}, err: err)
 				rescue
 					# Error, send result as a 137 sigkill
-					_ -> FieldAgent.send_result(self(), %{status: 137}, mpid)
+					_ ->
+						FieldAgent.send_result(self(), %{status: 137}, mpid)
+						File.rm script
 				end
 		end
 		{:noreply, %FieldAgent{field_agent | proc: proc}}

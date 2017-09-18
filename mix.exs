@@ -51,7 +51,7 @@ defmodule Cingi.Mixfile do
 			maintainers: ["Ramon Sandoval"],
 			licenses: ["MIT"],
 			links: %{github: "https://github.com/Rhathe/CingI"},
-			files: ~w(lib priv README.md config c-ing-i-logo.svg LICENSE),
+			files: ~w(mix.exs lib priv README.md config c-ing-i-logo.svg LICENSE),
 		]
 	end
 end
