@@ -129,13 +129,23 @@ defmodule Cingi.CLI do
 	def set_up_network(0, _) do end
 
 	def set_up_network(_, options) do
-		case {options[:name], options[:cookie]} do
+		# Determine either short name or long name
+		{type, name} = case {options[:name], options[:sname]} do
+			{nil, sname} -> {:shortnames, sname}
+			{lname, nil} -> {:longnames, lname}
+			{nil, nil} -> {nil, nil}
+			_ -> raise "Can't have both a long name and short name"
+		end
+
+		case {name, options[:cookie]} do
 			{nil, nil} -> raise "Requires name and cookie for networking"
 			{nil, _} -> raise "Requires name for networking"
 			{_, nil} -> raise "Requires cookie for networking"
 			{name, cookie} ->
-				Node.start(String.to_atom(name), :shortnames)
-				Node.set_cookie(String.to_atom(cookie))
+				case Node.start(String.to_atom(name), type) do
+					{:ok, _pid} -> Node.set_cookie(String.to_atom(cookie))
+					{:error, term} -> raise term
+				end
 		end
 	end
 

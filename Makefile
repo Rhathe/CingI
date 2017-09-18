@@ -1,6 +1,6 @@
 MIN_BRANCHES = 2
 BRANCH_NAME = two
-FILE = --file test/mission_plans/extends.yaml
+FILE = --file test/gitclone_cingi.yaml
 FORCE:
 
 deps: FORCE
@@ -36,16 +36,16 @@ test-three-cli:
 	make kill-all-epmd
 
 test-hq-cli: build-cli epmd-daemon
-	./cingi $(FILE) --minbranches $(MIN_BRANCHES) --name one@localhost --cookie test
+	./cingi $(FILE) --minbranches $(MIN_BRANCHES) --sname one@localhost --cookie test
 
 test-branch-cli: build-cli epmd-daemon
-	./cingi --connectto one@localhost --name $(BRANCH_NAME)@localhost --cookie test
+	./cingi --connectto one@localhost --sname $(BRANCH_NAME)@localhost --cookie test
 
 test-submit-file: build-cli epmd-daemon
-	./cingi $(FILE) --connectto one@localhost --name file@localhost --cookie test
+	./cingi $(FILE) --connectto one@localhost --sname file@localhost --cookie test
 
 test-close: build-cli epmd-daemon
-	./cingi --closehq --connectto one@localhost --name close@localhost --cookie test
+	./cingi --closehq --connectto one@localhost --sname close@localhost --cookie test
 
 kill-all-epmd: FORCE
 	for pid in $$(ps -ef | grep -v "grep" | grep "epmd -daemon" | awk '{print $$2}'); do kill -9 $$pid; done

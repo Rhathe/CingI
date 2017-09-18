@@ -1,7 +1,7 @@
 missions:
   - echo "starting cingi tests"
   - outpost:
-      setup_steps:
+      setup:
         - mix deps.get
         - make build-cli
         - mix test --only nonexistenttag # Only so that dependencies are forced to compile
@@ -9,6 +9,6 @@ missions:
       normal_test: echo "Running mix test for $UUID" && mix test
       distributed_test:
         outpost:
-          setup_steps: epmd -daemon
+          setup: epmd -daemon
         missions: echo "Running mix distributed test for $UUID" && mix test --only distributed
   - echo "cingi tests successful"
