@@ -216,16 +216,9 @@ defmodule Cingi.Outpost do
 			false ->
 				case {outpost.setup, outpost.parent_pid} do
 					{nil, nil} -> Outpost.report_has_finished(self(), nil, nil)
-					{setup, _} ->
-						setup = setup || [":"]
+					{osetup, _} ->
 						root_mission = Mission.get(outpost.root_mission_pid)
-
-						yaml_opts = [
-							prev_mission_pid: root_mission.prev_mission_pid,
-							map: %{"missions" => setup},
-							outpost_pid: self(),
-						]
-						Branch.queue_report outpost.branch_pid, yaml_opts
+						run_setup_or_teardown(outpost, osetup, root_mission.prev_mission_pid)
 				end
 				%Outpost{outpost | setting_up: true}
 		end
@@ -351,5 +344,16 @@ defmodule Cingi.Outpost do
 		end
 
 		FieldAgent.send_mission_plan(fa_pid, plan, nil, fa_pid)
+	end
+
+	def run_setup_or_teardown(outpost, missions, prev_mission_pid) do
+		missions = missions || [":"]
+
+		yaml_opts = [
+			prev_mission_pid: prev_mission_pid,
+			map: %{"missions" => missions},
+			outpost_pid: self(),
+		]
+		Branch.queue_report outpost.branch_pid, yaml_opts
 	end
 end
