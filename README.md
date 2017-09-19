@@ -8,20 +8,20 @@ Continuous-ing Integration
 
 ## Installation
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `cingi` to your list of dependencies in `mix.exs`:
+CingI is used via the command line. The easiest way to install is through mix.
 
-```elixir
-def deps do
-  [
-    {:cingi, "~> 0.1.0"}
-  ]
-end
+
+```bash
+$ mix escript.install hex cingi
 ```
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/cingi](https://hexdocs.pm/cingi).
+Or you can build from source
+
+
+```bash
+$ mix deps.get
+$ mix escript.build
+```
 
 ## License
 
