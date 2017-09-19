@@ -5,6 +5,18 @@
 
 Continuous-ing Integration
 
+CingI is currently a distributed task ("mission") runner.
+It introduces the concepts of "Missions", which can be considered both pipelines and tasks.
+They either run "Submissions" or a basic bash command. Missions with submissions pipe the output
+of one submission to another if run sequentially, but submissions can also be run in parallel.
+
+It can be used as a simple command line task runner locally or set up to
+run missions spread out among different machines (A main "Headquarters" and several "Branch" nodes).
+CingI uses yaml files ("Mission Plans") to define and execute missions.
+
+Future work is to build a CI server on top of its core to put the
+"Continuous Integration" in "Continuous-ing Integration"... or CingI.
+
 
 ## Installation
 
@@ -75,6 +87,9 @@ If you want to leave them constantly running instead:
 	```bash
 	$ cingi --closehq --connectto one@FIRST_IP --name close@ANY_IP --cookie test
 	```
+
+
+## Mission Plan Examples
 
 
 ## License
