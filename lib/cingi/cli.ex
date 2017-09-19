@@ -104,6 +104,9 @@ defmodule Cingi.CLI do
 			switches: [
 				minbranches: :integer,
 				file: :string,
+				name: :string,
+				sname: :string,
+				cookie: :string,
 				connectto: :string,
 				branchoutput: :boolean,
 				printbranchoutput: :boolean,
