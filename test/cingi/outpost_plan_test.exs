@@ -3,7 +3,7 @@ defmodule CingiOutpostPlansTest do
 
 	describe "simple outpost plan" do
 		setup do
-			Helper.run_mission_report("test/mission_plans/outposts/simple.plan")
+			Helper.run_mission_report("test/mission_plans/outposts/simple.yaml")
 		end
 
 		test "right amount of output", ctx do
@@ -37,7 +37,7 @@ defmodule CingiOutpostPlansTest do
 
 	describe "env and dir outpost plan" do
 		setup do
-			Helper.run_mission_report("test/mission_plans/outposts/env_and_dir.plan")
+			Helper.run_mission_report("test/mission_plans/outposts/env_and_dir.yaml")
 		end
 
 		test "right amount of output", ctx do

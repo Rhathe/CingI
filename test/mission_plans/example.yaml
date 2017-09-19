@@ -13,6 +13,5 @@ missions:
       fourth_echo:
         missions: echo "match 7"
   - missions: grep match
-    input: $IN
   - missions:
     - echo "end"

@@ -148,7 +148,7 @@ defmodule CingiBranchTest do
 	end
 
 	test "runs example file" do
-		res = Helper.create_mission_report([file: "test/mission_plans/example1.plan"])
+		res = Helper.create_mission_report([file: "test/mission_plans/example.yaml"])
 		hpid = res[:hq_pid]
 		Headquarters.resume(hpid)
 		mission = Helper.check_exit_code(res[:mission_pid])
@@ -166,7 +166,7 @@ defmodule CingiBranchTest do
 	end
 
 	test "make sure inputs are passed correctly to nested missions" do
-		res = Helper.create_mission_report([file: "test/mission_plans/nested.plan"])
+		res = Helper.create_mission_report([file: "test/mission_plans/nested.yaml"])
 		Headquarters.resume(res[:hq_pid])
 		mission = Helper.check_exit_code(res[:mission_pid])
 		output = mission.output |> Enum.map(&(&1[:data]))
@@ -193,7 +193,7 @@ defmodule CingiBranchTest do
 	end
 
 	test "generates correct outposts" do
-		res = Helper.create_mission_report([file: "test/mission_plans/outposts/simple.plan"])
+		res = Helper.create_mission_report([file: "test/mission_plans/outposts/simple.yaml"])
 		bpid = res[:branch_pid]
 		mpid = res[:mission_pid]
 		Headquarters.resume(res[:hq_pid])

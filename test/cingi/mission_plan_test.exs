@@ -3,7 +3,7 @@ defmodule CingiMissionPlansTest do
 	alias Cingi.Headquarters
 
 	test "runs parallel inputs file" do
-		res = Helper.create_mission_report([file: "test/mission_plans/inputs/parallel.plan"])
+		res = Helper.create_mission_report([file: "test/mission_plans/inputs/parallel.yaml"])
 		Headquarters.resume(res[:hq_pid])
 		mission = Helper.check_exit_code(res[:mission_pid])
 		output = mission.output
@@ -73,7 +73,7 @@ defmodule CingiMissionPlansTest do
 
 	describe "runs sequential inputs file" do
 		setup do
-			res = Helper.create_mission_report([file: "test/mission_plans/inputs/sequential.plan"])
+			res = Helper.create_mission_report([file: "test/mission_plans/inputs/sequential.yaml"])
 			Headquarters.resume(res[:hq_pid])
 			mission = Helper.wait_for_finished(res[:mission_pid])
 			output = mission.output
@@ -109,7 +109,7 @@ defmodule CingiMissionPlansTest do
 
 	describe "runs outputs file" do
 		setup do
-			res = Helper.create_mission_report([file: "test/mission_plans/outputs.plan"])
+			res = Helper.create_mission_report([file: "test/mission_plans/outputs.yaml"])
 			Headquarters.resume(res[:hq_pid])
 			mission = Helper.wait_for_finished(res[:mission_pid])
 			output = mission.output
