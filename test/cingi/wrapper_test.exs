@@ -37,9 +37,7 @@ defmodule WrapperTest do
 		t = _spawn ["bash #{path}"]
 
 		# Wait until sleep actually shows up as a process
-		Helper.timing(fn() ->
-			[get_process_lines(cmd) > 0, nil]
-		end)
+		Helper.wait_for_process cmd
 
 		is_running cmd
 		Process.exit t.pid, "test"
@@ -99,21 +97,15 @@ defmodule WrapperTest do
 	end
 
 	defp is_running(cmd) do
-		assert get_process_lines(cmd) > 0
+		assert Helper.get_process_lines(cmd) > 0
 	end
 
 	defp isnt_running(cmd) do
 		# Might have checked too fast, wait for a quarter of a second before checking again
 		# Since process dying from signal may not happen immediately
-		n = get_process_lines(cmd)
+		n = Helper.get_process_lines(cmd)
 		if n > 0 do Process.sleep(250) end
-		assert get_process_lines(cmd) == 0
-	end
-
-	defp get_process_lines(cmd) do
-		res = Porcelain.exec("bash", ["-c", "ps -o command | awk '$0==\"#{cmd}\"' | wc -l"])
-		{n, _} = Integer.parse res.out
-		n
+		assert Helper.get_process_lines(cmd) == 0
 	end
 
 	defp async_exec(cmds, input \\ nil) do

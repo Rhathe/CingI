@@ -12,12 +12,19 @@ defmodule Helper do
 		end)
 	end
 
+	def wait_for_process(cmd) do
+		timing(fn() ->
+			[get_process_lines(cmd) > 0, nil]
+		end)
+	end
+
 	def wait_for_valid_mission(pid) do
 		timing(fn () ->
 			mission = Mission.get pid
 			[mission.cmd != nil or mission.submissions != nil, mission]
 		end)
 	end
+
 	def wait_for_finished(pid) do
 		timing(fn () ->
 			mission = Mission.get pid
@@ -105,5 +112,11 @@ defmodule Helper do
 			|> Enum.map(&(&1[:data]))
 			|> Enum.join("\n")
 			|> String.split("\n", trim: true)
+	end
+
+	def get_process_lines(cmd) do
+		res = Porcelain.exec("bash", ["-c", "ps -o command | awk '$0==\"#{cmd}\"' | wc -l"])
+		{n, _} = Integer.parse res.out
+		n
 	end
 end
