@@ -54,7 +54,10 @@ defmodule CingiBranchTest do
 	end
 
 	test "runs sequential submissions" do
-		yaml = "missions:\n  - ncat -l -i 1 8000\n  - ncat -l -i 1 8001"
+		cmd8000 = "ncat -l -i 1 8000"
+		cmd8001 = "ncat -l -i 1 8001"
+
+		yaml = "missions:\n  - #{cmd8000}\n  - #{cmd8001}"
 		res = Helper.create_mission_report([string: yaml])
 		Headquarters.resume(res[:hq_pid])
 		bpid = res[:branch_pid]
@@ -67,9 +70,12 @@ defmodule CingiBranchTest do
 		mission = Mission.get(res[:mission_pid])
 		assert %{output: [], exit_code: nil, submission_holds: [sm1]} = mission
 		submission1 = Mission.get(sm1.pid)
-		assert %{cmd: "ncat -l -i 1 8000", running: true, finished: false} = submission1
 
+		assert %{cmd: ^cmd8000, running: true, finished: false} = submission1
+
+		Helper.wait_for_process cmd8000
 		Porcelain.exec("bash", [ "-c", "echo -n blah1 | ncat localhost 8000"])
+
 		Helper.wait_for_finished_missions(bpid, 1)
 		branch = Helper.wait_for_running_missions(bpid, 2)
 
@@ -85,9 +91,10 @@ defmodule CingiBranchTest do
 		submission1 = Mission.get(sm1.pid)
 		submission2 = Mission.get(sm2.pid)
 
-		assert %{cmd: "ncat -l -i 1 8000", running: false, finished: true} = submission1
-		assert %{cmd: "ncat -l -i 1 8001", running: true, finished: false} = submission2
+		assert %{cmd: ^cmd8000, running: false, finished: true} = submission1
+		assert %{cmd: ^cmd8001, running: true, finished: false} = submission2
 
+		Helper.wait_for_process cmd8001
 		Porcelain.spawn("bash", [ "-c", "echo -n blah2 | ncat localhost 8001"])
 		mission = Helper.check_exit_code(res[:mission_pid])
 
@@ -100,7 +107,7 @@ defmodule CingiBranchTest do
 		] = output
 
 		submission2 = Mission.get(sm2.pid)
-		assert %{cmd: "ncat -l -i 1 8001", running: false, finished: true} = submission2
+		assert %{cmd: ^cmd8001, running: false, finished: true} = submission2
 
 		branch = Helper.wait_for_finished_missions(bpid, 3)
 		assert length(branch.started_missions) == 0
@@ -120,6 +127,7 @@ defmodule CingiBranchTest do
 		assert length(branch.started_missions) == 0
 		assert length(branch.running_missions) == 5
 
+		Enum.map [1,2,3,4], &(Helper.wait_for_process("ncat -l -i 1 900#{&1}"))
 		finish = &(Porcelain.exec("bash", [ "-c", "echo -n blah#{&1} | ncat localhost 900#{&1}"]))
 
 		finish.(3)

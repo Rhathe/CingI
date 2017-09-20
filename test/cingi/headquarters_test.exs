@@ -53,6 +53,7 @@ defmodule CingiHeadquartersTest do
 		assert length(branch2.started_missions) == 0
 		assert length(branch2.running_missions) == 2
 
+		Enum.map [1,2,3,4], &(Helper.wait_for_process("ncat -l -i 1 902#{&1}"))
 		finish = &(Porcelain.exec("bash", [ "-c", "echo -n blah#{&1} | ncat localhost 902#{&1}"]))
 
 		finish.(3)

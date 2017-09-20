@@ -118,11 +118,12 @@ defmodule CingiFieldAgentTest do
 		end
 
 		test "runs mission with appropriate running/finished flag", ctx do
-			{fpid, mpid} = fa_with_plan("ncat -l -i 1 9000", ctx.outpost_pid)
+			cmd = "ncat -l -i 1 9000"
+			{fpid, mpid} = fa_with_plan(cmd, ctx.outpost_pid)
 			FieldAgent.get(fpid) # flush
 
 			assert %{
-				cmd: "ncat -l -i 1 9000",
+				cmd: ^cmd,
 				output: [],
 				finished: false,
 				running: true,
@@ -130,11 +131,12 @@ defmodule CingiFieldAgentTest do
 				field_agent_pid: ^fpid,
 			} = Mission.get(mpid)
 
+			Helper.wait_for_process cmd
 			Porcelain.spawn("bash", [ "-c", "echo -n blah | ncat localhost 9000"])
 			Helper.check_exit_code mpid
 
 			assert %{
-				cmd: "ncat -l -i 1 9000",
+				cmd: ^cmd,
 				output: [[data: "blah", type: :out, timestamp: _, field_agent_pid: _, pid: []]],
 				finished: true,
 				running: false,
