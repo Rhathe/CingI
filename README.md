@@ -1,4 +1,4 @@
-# CingI
+# CingI [![Build Status](https://travis-ci.org/Rhathe/CingI.svg)](https://travis-ci.org/Rhathe/CingI)
 
 ![logo](https://rawgit.com/Rhathe/C-ING-I/master/c-ing-i-logo.svg)
 
