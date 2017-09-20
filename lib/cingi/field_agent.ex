@@ -226,7 +226,7 @@ defmodule Cingi.FieldAgent do
 	###########
 
 	defp add_to_output(field_agent, opts) do
-		time = :os.system_time(:millisecond)
+		time = System.system_time(:millisecond)
 		data = opts ++ [timestamp: time, field_agent_pid: self(), pid: []]
 		Mission.send(field_agent.mission_pid, data)
 		Outpost.field_agent_data(field_agent.outpost_pid, self(), data)
