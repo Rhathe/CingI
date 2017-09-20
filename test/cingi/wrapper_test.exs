@@ -38,7 +38,7 @@ defmodule WrapperTest do
 
 		# Wait until sleep actually shows up as a process
 		Helper.timing(fn() ->
-			[get_process_lines(cmd) > 2, nil]
+			[get_process_lines(cmd) > 0, nil]
 		end)
 
 		is_running cmd
@@ -99,22 +99,19 @@ defmodule WrapperTest do
 	end
 
 	defp is_running(cmd) do
-		# Only two processes,the bash -c and the actual grep
-		assert get_process_lines(cmd) > 2
+		assert get_process_lines(cmd) > 0
 	end
 
 	defp isnt_running(cmd) do
-		# Only two processes,the bash -c and the actual grep
-		n = get_process_lines(cmd)
-
 		# Might have checked too fast, wait for a quarter of a second before checking again
 		# Since process dying from signal may not happen immediately
-		if n > 2 do Process.sleep(250) end
-		assert get_process_lines(cmd) <= 2
+		n = get_process_lines(cmd)
+		if n > 0 do Process.sleep(250) end
+		assert get_process_lines(cmd) == 0
 	end
 
 	defp get_process_lines(cmd) do
-		res = Porcelain.exec("bash", ["-c", "ps aux | grep \"#{cmd}\" | wc -l"])
+		res = Porcelain.exec("bash", ["-c", "ps -o command | awk '$0==\"#{cmd}\"' | wc -l"])
 		{n, _} = Integer.parse res.out
 		n
 	end
