@@ -1,13 +1,10 @@
 language: elixir
 elixir:
   - 1.5
-branches:
-  except:
-  - "/^dev-.+$/"
 install:
   - mix local.rebar --force # for Elixir 1.3.0 and up
   - mix local.hex --force
   - mix deps.get
   - mix escript.build
 script:
-  - ./cingi --file test/gitclone_cingi.yaml
+  - ./cingi --file .cingi.yaml
