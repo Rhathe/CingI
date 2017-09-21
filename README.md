@@ -396,6 +396,72 @@ missions:
   - echo "$SOME_ENV" # Will print someval
 ```
 
+### When: Conditional Missions
+
+You can have missions run conditionally if run sequentially by setting the `when` field.
+You can conditionally run a missions based on `outputs`, `exit_codes`, and `success`.
+(NOTE: if you want to condition based on `exit_codes` or `success`,
+then make sure the supermission has `fail_fast: false`)
+
+```yaml
+fail_fast: false
+missions:
+  - echo test; exit 5;
+  - missions:
+    run1:
+      when:
+        - outputs: test
+      missions: echo "runs with output 'test'"
+    skipped1:
+      when:
+        - exit_codes: 4
+      missions: echo "doesn't run since exit code is not 4"
+    run2:
+      when:
+        - success: false
+      missions: echo "runs with failure"
+```
+
+Then `when` field takes a list, so all the elements of the list need to pass.
+
+```yaml
+fail_fast: false
+missions:
+  - echo test; exit 5;
+  - missions:
+    runs:
+      when:
+        - outputs: test
+        - exit_codes: 5
+      missions: echo "runs with output 'test' and exit_code 5"
+    skips:
+      when:
+        - outputs: test
+        - exit_codes: 4
+      missions: echo "doesn't run since exit code is still not 4"
+```
+
+However, only one condition within the element of the list needs to pass for the entire element to pass.
+
+```yaml
+fail_fast: false
+missions:
+  - echo test; exit 5;
+  - missions:
+    runs1:
+      when:
+        - outputs:
+           - test
+           - nottest
+      missions: echo "runs with output 'test'"
+    runs2:
+      when:
+        - outputs: test
+          exit_codes: 4
+      missions: echo "runs this time because of extra condition outputs: test"
+```
+
+
 ## License
 
 CingI is licensed under the [MIT license](LICENSE).
