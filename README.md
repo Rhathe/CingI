@@ -106,7 +106,6 @@ name: Some mission
 missions: echo "This map is a valid mission plan"
 ```
 
-
 ### Sequential/Parallel Missions
 
 Although a mission plan is a single mission, all missions either run
@@ -331,6 +330,70 @@ with a special "$IN" string or list of "$IN" strings in the `input` field.
         - $IN["three"]
         - $IN['two']
       missions: "while read line; do echo \"b: $line\"; done"
+```
+
+### Outposts
+
+Since CingI can be run in a distributed manner, each Branch could have been run in different
+directories with different environment variables. It may be necessary to set up the environment
+to run the missions in.
+
+"Outposts" serve as a way to setup the environment in a branch before running a mission.
+They are defined in the `outpost` field, with further configuration using the
+`dir`, `env`, and `setup` fields. Outpost directories and environment variables are
+carried through all submissions of the mission where it's defined in,
+unless overriden by a submission's own outpost.
+
+```yaml
+outpost:
+  dir: /tmp
+  env:
+    ENV_1: one
+    ENV_2: two
+missions:
+  - pwd # Will print "/tmp"
+  - outpost:
+      dir: /tmp/tmp2
+      env:
+        ENV_2: another_two
+    missions:
+      - pwd # Will print "/tmp/tmp2" 
+      - echo "$ENV_1, $ENV_2" # Will print "one, another_two"
+  - echo "$ENV_1, $ENV_2" # Will print "one, two"
+```
+
+You can also specify a `setup`. An outpost setup is essentially a mission that's run
+whenever an outpost needs to be setup for a mission. Setups and any parent setups are run only when
+a submission of that particular branch is running a bash command.
+
+```yaml
+outpost:
+  setup:
+    - mkdir test
+    - echo "{}"
+missions:
+  - outpost:
+      setup:
+        - cat "echo testecho" > test/script.sh
+        - echo "{}"
+    missions:
+      - bash test/script.sh # Will print "testecho"
+```
+
+If you're wondering what the `echo "{}"` is for, it's because the `dir` and `env` fields
+can be configured using the last line of the `setup` output if the last line
+is a valid json string, and can be selected with the special "$SETUP" string.
+
+```yaml
+outpost:
+  dir: $SETUP['a']
+  env:
+    SOME_ENV: $SETUP['b']
+  setup:
+    - "echo \"{\\\"a\\\": \\\"/tmp\\\", \\\"b\\\": \\\"someval\\\"}\""
+missions:
+  - pwd # Will print "/tmp"
+  - echo "$SOME_ENV" # Will print someval
 ```
 
 ## License
