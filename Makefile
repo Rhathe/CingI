@@ -24,28 +24,40 @@ epmd-daemon: FORCE
 test-cli: build-cli
 	./cingi $(FILE); echo "exited with $$?"
 
-test-two-cli:
-	make test-branch-cli &
-	make test-hq-cli
+test-two-cli: build-cli epmd-daemon
+	make two-cli
 	make kill-all-epmd
 
-test-three-cli:
-	make test-branch-cli &
-	make test-branch-cli BRANCH_NAME=three &
-	make test-hq-cli MIN_BRANCHES=3
+test-three-cli: build-cli epmd-daemon
+	make three-cli
 	make kill-all-epmd
 
 test-hq-cli: build-cli epmd-daemon
-	./cingi $(FILE) --minbranches $(MIN_BRANCHES) --sname one@localhost --cookie test
+	make hq-cli
 
 test-branch-cli: build-cli epmd-daemon
-	./cingi --connectto one@localhost --sname $(BRANCH_NAME)@localhost --cookie test
+	make branch-cli
 
 test-submit-file: build-cli epmd-daemon
 	./cingi $(FILE) --connectto one@localhost --sname file@localhost --cookie test
 
 test-close: build-cli epmd-daemon
 	./cingi --closehq --connectto one@localhost --sname close@localhost --cookie test
+
+hq-cli:
+	./cingi $(FILE) --minbranches $(MIN_BRANCHES) --sname one@localhost --cookie test
+
+branch-cli:
+	./cingi --connectto one@localhost --sname $(BRANCH_NAME)@localhost --cookie test
+
+two-cli:
+	make branch-cli &
+	make hq-cli
+
+three-cli:
+	make branch-cli &
+	make branch-cli BRANCH_NAME=three &
+	make hq-cli MIN_BRANCHES=3
 
 kill-all-epmd: FORCE
 	for pid in $$(ps -ef | grep -v "grep" | grep "epmd -daemon" | awk '{print $$2}'); do kill -9 $$pid; done

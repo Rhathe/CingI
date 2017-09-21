@@ -11,4 +11,12 @@ missions:
         outpost:
           setup: epmd -daemon
         missions: echo "Running mix distributed test for $UUID" && mix test --only distributed
+      cli:
+        outpost:
+          setup: epmd -daemon
+        missions:
+          - echo "Running cli tests for $UUID"
+          - ./cingi --file test/mission_plans/example.yaml
+          - make two-cli FILE="--file test/mission_plans/example.yaml"
+          - make three-cli FILE="--file test/mission_plans/example.yaml"
   - echo "cingi tests successful"
