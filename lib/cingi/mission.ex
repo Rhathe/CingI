@@ -1,4 +1,12 @@
 defmodule Cingi.Mission do
+	@moduledoc """
+	Missions are the actual processses thnat records the information
+	necessary to run submissions or bash commands. They function as the task
+	or pipeline needed to be queued by headquarters, sent to branches, sent to outposts,
+	amd run by the field agent assigned by the outpost. They record
+	the output and exit code of the submissioons or bash commands when run.
+	"""
+
 	alias Cingi.Mission
 	alias Cingi.MissionReport
 	alias Cingi.FieldAgent

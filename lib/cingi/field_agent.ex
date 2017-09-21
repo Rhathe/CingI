@@ -2,7 +2,7 @@ defmodule Cingi.FieldAgent do
 	@moduledoc """
 	Field agents are processes that are assigned a mission by an outpost
 	Typically they run the bash command in the same environment as the outpost
-	They run on the same noide as the outpost but report the output to the mission
+	They run on the same node as the outpost but report the output to the mission
 	"""
 
 	alias Cingi.FieldAgent

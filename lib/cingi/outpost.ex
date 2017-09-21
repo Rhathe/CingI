@@ -2,7 +2,9 @@ defmodule Cingi.Outpost do
 	@moduledoc """
 	Outposts are processes set up by commanders to connect to its branch
 	and receive missions. Outposts have to set up the environment,
-	like a workspace folder, or can be set up inside docker containers
+	like a workspace folder, by setting the environment variables,
+	working diretctory, and any setup steps that need to run when a mission
+	is being run by any node.
 	"""
 
 	alias Cingi.Outpost

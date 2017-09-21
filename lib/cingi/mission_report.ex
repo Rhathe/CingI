@@ -1,4 +1,10 @@
 defmodule Cingi.MissionReport do
+	@moduledoc """
+	Mission Reports are created when a mission plan is sent to a branch.
+	Mission Reports hold the mission plan that ultimaely creates a mission to be run.
+	They are given a yaml file/string/or map and convert that into a usable elixir map.
+	"""
+
 	alias Cingi.MissionReport
 	alias Cingi.Branch
 	alias Cingi.Outpost

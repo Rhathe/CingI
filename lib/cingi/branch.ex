@@ -1,4 +1,13 @@
 defmodule Cingi.Branch do
+	@moduledoc """
+	Branches manage the missions for a single node.
+	They intialize missions and mission reports,
+	and assign or create the outposts for missions to be sent
+	to. Although they initialize missions, they send missions
+	over to a single Headquarters which reassigns the missions
+	to an appropriate branch based on capacity.
+	"""
+
 	alias Cingi.Branch
 	alias Cingi.Headquarters
 	alias Cingi.Outpost

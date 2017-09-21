@@ -1,4 +1,12 @@
 defmodule Cingi.CLI do
+	@moduledoc """
+	The CLI handles all the command line functionality.
+	They are linked to the local branch started by the application.
+	They also create the global Headquarters all branches connect to.
+	The CLI manages the netwwork and connections,
+	and also handles disconnect signals.
+	"""
+
 	def main(args) do
 		Process.register self(), :local_cli
 		args |> parse_args |> process
