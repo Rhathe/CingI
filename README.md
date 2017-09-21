@@ -462,6 +462,40 @@ missions:
 ```
 
 
+## Extends
+
+To prevent duplication of code, you can define the field `mission_plan_templates` in a mission
+and extend the templates defined there in its submissions with the field `extends_template`.
+A mission will search for a template up the supermission hierarchy until it finds the matching template key.
+
+```yaml
+mission_plan_templates:
+  one:
+    missions: echo one
+missions:
+  - extends_template: one # Will print one
+  - mission_plan_templates:
+      one:
+        missions: echo another_one
+    missions:
+      - extends_template: one # Will print another_one
+  - missions:
+      - extends_template: one # Will also print one
+```
+
+You can also define a mission plan in another file and extend it with the `extends_file` field.
+(NOTE: The directory used for the file is the same directory defined it the outpost)
+
+```yaml
+missions:
+  - extends_file: one.yaml # Will extend the file found in the directory cingi was started in
+  - outpost:
+      dir: /tmp
+    missions:
+      - extends_file: one.yaml # Will extend /tmp/one.yaml instead 
+```
+
+
 ## License
 
 CingI is licensed under the [MIT license](LICENSE).

@@ -47,7 +47,7 @@ defmodule WrapperTest do
 
 
 	test "runs ncat, kills ncat process, also deletes tmp_file" do
-		cmd = "ncat -l -i 1 8501"
+		cmd = "ncat -l -i 1 8502"
 		path = tmp_file("")
 		t = _spawn [cmd, path, "true"]
 		is_running cmd
