@@ -202,6 +202,137 @@ missions:
 ```
 
 
+#### Inputs and Outputs
+
+A list of sequential submissions, by default, will pipe their output to the next submission.
+
+```yaml
+- echo "mission input"
+- read INPUT; echo "input is ($INPUT)" # will print "input is (mission input)"
+```
+
+If a mission is composed of sequential submissions, the first submission will use its supermission's input as its own input.
+
+```yaml
+- echo "mission input"
+- missions:
+  - read INPUT; echo "first input is ($INPUT)" # will print "first input is (mission input)"
+  - read INPUT; echo "second input is [$INPUT]" # will print "second input is [first input is (mission input)]"
+```
+
+If a mission is composed of parallel submissions, all submissions will use its supermission's input as its own input.
+
+```yaml
+- echo "mission input"
+- missions:
+    one: read INPUT; echo "first input is ($INPUT)" # will print "first input is (mission input)"
+    two: read INPUT; echo "second input is [$INPUT]" # will print "second input is [mission input]"
+```
+
+A mission's output will be output of its submissions
+(in order if sequential submissions,
+interleaved depending on execution time if parallel submissions).
+
+```yaml
+- - echo one
+  - echo two
+  - echo three
+
+# will print:
+#  input: one
+#  input: two
+#  input: three
+- "while read line; do echo \"input: $line\"; done"
+```
+
+```yaml
+- missions:
+    one: echo one
+    two: echo two
+
+# will print:
+#  input: one
+#  input: two
+# or print:
+#  input: two
+#  input: one
+- "while read line; do echo \"input: $line\"; done"
+```
+
+You can filter the output based on index if sequential submissions or key if parallel submissions
+with a special "$OUT" string or list of "$OUT" strings in the `output` field.
+(NOTE: filter order doesn't matter in the list)
+
+```yaml
+# output will be "two"
+- output: $OUT[2]
+  missions:
+    - echo one
+    - echo two
+    - echo three
+
+# output will be "one\nthree"
+- output:
+    - $OUT[$LAST]
+    - $OUT[0]
+  missions:
+    - echo one
+    - echo two
+    - echo three
+
+# output will be "one\ntwo" or "two\none"
+- output:
+    - $OUT['one']
+    - $OUT["two"]
+  missions:
+    one: echo one
+    two: echo two
+    three: echo three
+```
+
+A submission can select its input by index or key if the previous mission is composed of submissions
+with a special "$IN" string or list of "$IN" strings in the `input` field.
+(NOTE: Unlike the `output` field, input order DOES matter)
+
+```yaml
+- - echo one
+  - echo two
+  - echo three
+- missions:
+
+    # will print "a: one"
+    a:
+      input: $IN[0]
+      missions: "while read line; do echo \"a: $line\"; done"
+
+    # will print "b: three\nb: two"
+    b:
+      input:
+        - $IN[$LAST]
+        - $IN[1]
+      missions: "while read line; do echo \"b: $line\"; done"
+```
+
+```yaml
+- missions:
+    one: echo one
+    two: echo two
+    three: echo three
+- missions:
+
+    # will print "a: one"
+    a:
+      input: $IN['one']
+      missions: "while read line; do echo \"a: $line\"; done"
+
+    # will print "b: three\nb: two"
+    b:
+      input:
+        - $IN["three"]
+        - $IN['two']
+      missions: "while read line; do echo \"b: $line\"; done"
+```
+
 ## License
 
 CingI is licensed under the [MIT license](LICENSE).
