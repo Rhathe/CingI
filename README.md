@@ -91,6 +91,68 @@ If you want to leave them constantly running instead:
 
 ## Mission Plan Examples
 
+A mission plan is a yaml file that defines a single mission.
+
+A mission can be a bash command:
+
+```yaml
+echo "This line is a valid mission plan"
+```
+
+Or a map to configure the mission:
+
+```yaml
+name: Some mission
+missions: echo "This map is a valid mission plan"
+```
+
+Although a mission plan is a single mission, all missions either run
+a single bash command, or are composed of other smaller missions, or submissions.
+
+You can do a sequential list of submissions, run one after the other, with one mission encompassing them all:
+
+```yaml
+- echo "This list"
+- echo "is a valid"
+- echo "mission plan"
+```
+
+```yaml
+missions:
+  - echo "This list"
+  - echo "is also a valid"
+  - echo "mission plan"
+```
+
+Or a parallel map of submissions, which are all run at the same time
+(NOTE: parallel missions can only be defined under the missions key):
+
+```yaml
+missions:
+  one: echo "This map"
+  two: echo "is also a valid"
+  three: echo "mission plan"
+```
+
+Submissions are just missions, so they too can have submissions of their own:
+
+```yaml
+name: Top Missions
+missions:
+  one: echo "Missions can just a bash command"
+  two:
+    - echo "Missions"
+    - - echo "can be"
+      - echo "a list"
+    - name: Inside List
+      missions: echo "of bash commands"
+  three:
+    name: Sub Parallel Group
+    missions:
+      threeone: echo "Or another map of bash commands"
+      threetwo: echo "These are in parallel, so they may be executed out of order"
+```
+
 
 ## License
 
