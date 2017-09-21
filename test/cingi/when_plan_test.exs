@@ -7,7 +7,7 @@ defmodule CingiWhenTest do
 		end
 
 		test "runs correct amount of output", ctx do
-			assert 9 = length(ctx.output)
+			assert 10 = length(ctx.output)
 		end
 
 		test "things that should not run don't run", ctx do
@@ -45,6 +45,10 @@ defmodule CingiWhenTest do
 		test "runs correct output for parallel group", ctx do
 			assert "runs because parallel group exited with 0" in ctx.output
 			assert "should not run because parallel group was success" not in ctx.output
+		end
+
+		test "runs correct output meaning last submission does not make a nil exit code", ctx do
+			assert "runs because exit code is not nil with last mission being skipped" in ctx.output
 		end
 
 		test "runs end mission because of false fail_fast", ctx do

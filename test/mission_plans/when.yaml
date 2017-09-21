@@ -55,12 +55,17 @@ missions:
       - missions:
           success_of_whens:
             when:
-              - exit_codes:
-                  - 0
+              - exit_codes: 0
             missions: echo "runs because parallel group exited with 0"
 
           failure_of_whens:
             when:
               - success: false
             missions: echo "should not run because parallel group was success"
+      - when:
+          - output: NON_EXISTENT_OUTPUT
+        missions: echo "should not run because of non-existent output"
+  - when:
+      - exit_codes: 0
+    missions: echo "runs because exit code is not nil with last mission being skipped"
   - echo end

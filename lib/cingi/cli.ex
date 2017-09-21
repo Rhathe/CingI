@@ -89,8 +89,13 @@ defmodule Cingi.CLI do
 					loop.(loop)
 				{:report, ^report_pid, mission_pid} ->
 					Cingi.Headquarters.terminate_branches({:global, :hq})
-					exit_code = Cingi.Mission.get(mission_pid).exit_code
-					if exit_code != 0 do System.halt(exit_code) end
+					case Cingi.Mission.get(mission_pid).exit_code do
+						0 -> :ok
+						nil ->
+							IO.puts :stderr, "No missions ran, everything was skipped"
+							System.halt(1)
+						exit_code -> System.halt(exit_code)
+					end
 				:terminate ->
 					Cingi.Headquarters.terminate_branches({:global, :hq})
 				_ -> loop.(loop)

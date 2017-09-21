@@ -212,10 +212,9 @@ defmodule Cingi.Mission do
 			# Must not have any submissions, use whatever result is given
 			length(exit_codes) == 0 -> result.status
 
-			# Get last exit code if missions are sequential
+			# Get last non-nil exit code if missions are sequential
 			is_list(mission.submissions) ->
-				[head | _] = Enum.reverse(exit_codes)
-				head
+				exit_codes |> Enum.reverse |> Enum.find(&(&1))
 
 			# Get largest exit code if parallel
 			true ->
