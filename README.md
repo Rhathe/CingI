@@ -89,7 +89,7 @@ If you want to leave them constantly running instead:
 	```
 
 
-## Mission Plan Examples
+## Mission Plans
 
 A mission plan is a yaml file that defines a single mission.
 
@@ -105,6 +105,9 @@ Or a map to configure the mission:
 name: Some mission
 missions: echo "This map is a valid mission plan"
 ```
+
+
+### Sequential/Parallel Missions
 
 Although a mission plan is a single mission, all missions either run
 a single bash command, or are composed of other smaller missions, or submissions.
@@ -151,6 +154,51 @@ missions:
     missions:
       threeone: echo "Or another map of bash commands"
       threetwo: echo "These are in parallel, so they may be executed out of order"
+```
+
+
+#### Failing Fast
+
+When a submission fails in a sequential list of submissions,
+no further submissions of the mission will run
+and the exit code will propagate up to the supermission.
+
+```yaml
+- echo "will run"
+- exit 5
+- echo "won't run"
+```
+
+However, setting `fail_fast: false` will keep running submissions,
+and the exit code of the mission will be the last submissions exit code.
+
+```yaml
+fail_fast: false
+missions:
+  - echo "will run"
+  - exit 5
+  - echo "will still run"
+```
+
+On the other hand, by default, a mission will wait for all parallel submissions
+to finish, and will use the largest exit code of from its submissions.
+
+```yaml
+missions:
+  one: sleep 2; echo "will run"
+  two: sleep 1; exit 5
+  three: sleep 2; echo "will also run"
+```
+
+However, setting `fail_fast: true` will kill all parallel submissions when one fails,
+and the exit code of the mission will still be the largest submissions exit code.
+
+```yaml
+fail_fast: true
+missions:
+  one: echo "will run"
+  two: sleep 1; exit 5
+  three: sleep 2; echo "will not run"
 ```
 
 
