@@ -11,3 +11,6 @@ install:
   - mix escript.build
 script:
   - ./cingi --file .cingi.yaml
+branches:
+  only:
+    - master

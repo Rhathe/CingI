@@ -181,9 +181,9 @@ defmodule Cingi.Outpost do
 	end
 
 	def handle_cast(:update_alternates, outpost) do
-		{:ok, alternates} = case outpost.alternates do
-			nil -> Agent.start_link fn -> %{} end
-			x -> {:ok, x}
+		alternates = case outpost.alternates do
+			nil -> Outpost.start_alternates(outpost.root_mission_pid) 
+			x -> x
 		end
 
 		self_pid = self()
@@ -357,5 +357,20 @@ defmodule Cingi.Outpost do
 			outpost_pid: self(),
 		]
 		Branch.queue_report outpost.branch_pid, yaml_opts
+	end
+
+	# Should not be called on its own,
+	# Need to start alternates in the headquarters node
+	# So call this with :rpc.call in the hq node
+	# So gproc registers agent on hq node
+	def start_alternates(root_mission_pid) do
+		{:ok, agent_pid} = Agent.start_link(fn ->
+			case root_mission_pid do
+				nil -> :ok
+				mpid ->:gproc.reg {:n, :l, {:outpost_agent_by_mission, mpid}}
+			end
+			%{}
+		end)
+		agent_pid
 	end
 end

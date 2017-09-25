@@ -20,6 +20,14 @@ defmodule CingiOutpostTest do
 		assert %{nil: ^pid} = Outpost.get(pid).alternates |> Agent.get(&(&1))
 	end
 
+	test "alternates is registered under root mission" do
+		mpid = spawn fn -> :ok end
+		{:ok, pid} = Outpost.start_link(root_mission_pid: mpid)
+		alternates = Outpost.get(pid).alternates
+		key = {:n, :l, {:outpost_agent_by_mission, mpid}}
+		assert ^alternates = :gproc.where(key)
+	end
+
 	test "alternates do not update with new outposts" do
 		{:ok, pid1} = Outpost.start_link()
 		{:ok, pid2} = Outpost.start_link(original: pid1)

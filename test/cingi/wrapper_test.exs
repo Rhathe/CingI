@@ -93,7 +93,9 @@ defmodule WrapperTest do
 	end
 
 	defp _spawn(cmds, input \\ nil) do
-		Porcelain.spawn("./priv/bin/wrapper.sh", cmds, in: input)
+		pid = Porcelain.spawn("./priv/bin/wrapper.sh", cmds, in: input)
+		Helper.wait_for_process Enum.at(cmds, 0)
+		pid
 	end
 
 	defp is_running(cmd) do
