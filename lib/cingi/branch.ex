@@ -201,7 +201,7 @@ defmodule Cingi.Branch do
 			plan: Mission.get_outpost_plan(mission_pid),
 			parent_pid: base_outpost,
 			root_mission_pid: mission_pid,
-			alternates: elem(:rpc.call(alternates_node, Agent, :start_link, [fn -> %{} end]), 1),
+			alternates: :rpc.call(alternates_node, Outpost, :start_alternates, [mission_pid]),
 		]
 
 		# See if mission has an outpost configuration
