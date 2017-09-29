@@ -73,6 +73,40 @@ defmodule CingiOutpostTest do
 		assert pid2 == outpost2
 	end
 
+	test "parents are updated with children" do
+		{:ok, bpid} = Branch.start_link()
+		{:ok, pid1} = Outpost.start_link(branch_pid: bpid)
+		{:ok, pid2} = Outpost.start_link(parent_pid: pid1, branch_pid: bpid)
+
+		assert [%{pid: ^pid2}] = Outpost.get(pid1).child_pids
+
+		{:ok, pid3} = Outpost.start_link(parent_pid: pid1, branch_pid: bpid)
+		assert [%{pid: ^pid2}, %{pid: ^pid3}] = Outpost.get(pid1).child_pids
+	end
+
+	test "parents on branch are updated with correct children" do
+		{:ok, bpid1} = Branch.start_link()
+		{:ok, bpid2} = Branch.start_link()
+		{:ok, pid1} = Outpost.start_link(branch_pid: bpid1)
+		{:ok, pid2} = Outpost.create_version_on_branch(pid1, bpid2)
+
+		# child outpost started on same branch
+		{:ok, pid3} = Outpost.start_link(parent_pid: pid1, branch_pid: bpid1)
+
+		# parent outpost on same branch has the child outpost
+		assert %{parent_pid: ^pid1} = Outpost.get(pid3)
+		assert [%{pid: ^pid3}] = Outpost.get(pid1).child_pids
+		assert [] = Outpost.get(pid2).child_pids
+
+		# child outpost started on different branch than given parent outpost
+		{:ok, pid4} = Outpost.start_link(parent_pid: pid1, branch_pid: bpid2)
+
+		# parent on the second branch has the child instead
+		assert %{parent_pid: ^pid2} = Outpost.get(pid4)
+		assert [%{pid: ^pid3}] = Outpost.get(pid1).child_pids
+		assert [%{pid: ^pid4}] = Outpost.get(pid2).child_pids
+	end
+
 	@tag distributed: true
 	test "distributed outposts" do
 		count = 3

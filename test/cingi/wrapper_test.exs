@@ -111,7 +111,9 @@ defmodule WrapperTest do
 	end
 
 	defp async_exec(cmds, input \\ nil) do
-		Task.async(fn() -> exec(cmds, input) end)
+		pid = Task.async(fn() -> exec(cmds, input) end)
+		Helper.wait_for_process Enum.at(cmds, 0)
+		pid
 	end
 
 	defp tmp_file(content) do
