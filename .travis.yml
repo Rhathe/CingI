@@ -1,6 +1,6 @@
 language: elixir
 elixir:
-  - 1.5
+  - 1.5.1
 before_install:
   - sudo apt-get -qq update
   - sudo apt-get install nmap

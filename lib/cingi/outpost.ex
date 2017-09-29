@@ -20,8 +20,9 @@ defmodule Cingi.Outpost do
 
 		pid: nil,
 		branch_pid: nil,
-		parent_pid: nil,
 		root_mission_pid: nil,
+		parent_pid: nil,
+		child_pids: [],
 
 		setup: nil,
 		alternates: nil,
@@ -117,6 +118,10 @@ defmodule Cingi.Outpost do
 		GenServer.cast(pid, :update_alternates)
 	end
 
+	def inform_parent_of_child(parent_pid, child_pid) do
+		GenServer.cast(parent_pid, {:inform_parent_of_child, child_pid})
+	end
+
 	# Server Callbacks
 
 	def init(opts) do
@@ -157,6 +162,7 @@ defmodule Cingi.Outpost do
 			end,
 		}
 
+		Outpost.inform_parent_of_child(outpost.parent_pid, self())
 		Outpost.update_alternates(self())
 		{:ok, outpost}
 	end
@@ -190,6 +196,11 @@ defmodule Cingi.Outpost do
 		Agent.update(alternates, &(Map.put_new(&1, outpost.branch_pid, self_pid)))
 
 		{:noreply, %Outpost{outpost | alternates: alternates}}
+	end
+
+	def handle_cast({:inform_parent_of_child, child_pid}, outpost) do
+		child_pids = outpost.child_pids ++ [%{pid: child_pid}]
+		{:noreply, %Outpost{outpost | child_pids: child_pids}}
 	end
 
 	def handle_cast({:run_mission, mission}, outpost) do
