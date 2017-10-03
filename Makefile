@@ -1,6 +1,8 @@
 MIN_BRANCHES = 2
 BRANCH_NAME = two
+PRINT_BRANCH_OUTPUT =
 FILE = --file test/gitclone_cingi.yaml
+#FILE = --file test/mission_plans/outposts/teardown.yaml
 FORCE:
 
 deps: FORCE
@@ -45,10 +47,10 @@ test-close: build-cli epmd-daemon
 	./cingi --closehq --connectto one@localhost --sname close@localhost --cookie test
 
 hq-cli:
-	./cingi $(FILE) --minbranches $(MIN_BRANCHES) --sname one@localhost --cookie test
+	./cingi $(FILE) --minbranches $(MIN_BRANCHES) --sname one@localhost --cookie test $(if $(PRINT_BRANCH_OUTPUT), "--printbranchoutput")
 
 branch-cli:
-	./cingi --connectto one@localhost --sname $(BRANCH_NAME)@localhost --cookie test
+	./cingi --connectto one@localhost --sname $(BRANCH_NAME)@localhost --cookie test $(if $(PRINT_BRANCH_OUTPUT), "--printbranchoutput")
 
 two-cli:
 	make branch-cli &

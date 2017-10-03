@@ -10,6 +10,7 @@ defmodule Cingi.Mission do
 	alias Cingi.Mission
 	alias Cingi.MissionReport
 	alias Cingi.FieldAgent
+	alias Cingi.Outpost
 	use GenServer
 
 	defstruct [
@@ -79,6 +80,10 @@ defmodule Cingi.Mission do
 
 	def request_mission_plan(pid, key, fa_pid) do
 		GenServer.cast(pid, {:request_mission_plan, key, fa_pid})
+	end
+
+	def report_result_up(pid, result) do
+		GenServer.cast(pid, {:report_result_up, result})
 	end
 
 	def stop(pid) do
@@ -336,6 +341,29 @@ defmodule Cingi.Mission do
 		plan = mission.mission_plan
 		spid = mission.supermission_pid
 		FieldAgent.send_mission_plan(field_agent, plan, self(), spid)
+		{:noreply, mission}
+	end
+
+	def handle_cast({:report_result_up, result}, mission) do
+		# Get the alternates agent, make sure all alternate outposts
+		# That have this mission as its root mission are torn down
+		teardowns = :gproc.where({:n, :l, {:outpost_agent_by_mission, self()}})
+			|> Agent.get(&(&1))
+			|> Enum.map(fn ({_, outpost_pid}) ->
+				Task.async(fn -> Outpost.teardown outpost_pid end)
+			end)
+
+		# Wait for all teardowns
+		Task.yield_many teardowns
+
+		super_pid = mission.supermission_pid
+		report_pid = mission.report_pid
+
+		cond do
+			super_pid -> Mission.send_result(super_pid, result, self())
+			report_pid -> MissionReport.finished_mission(report_pid, self())
+			true -> :ok
+		end
 		{:noreply, mission}
 	end
 

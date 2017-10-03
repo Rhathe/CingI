@@ -2,6 +2,7 @@ defmodule CingiOutpostTest do
 	use ExUnit.Case
 	alias Cingi.Outpost
 	alias Cingi.Branch
+	alias Cingi.Headquarters
 	doctest Outpost
 
 	test "creates outpost" do
@@ -105,6 +106,43 @@ defmodule CingiOutpostTest do
 		assert %{parent_pid: ^pid2} = Outpost.get(pid4)
 		assert [%{pid: ^pid3}] = Outpost.get(pid1).child_pids
 		assert [%{pid: ^pid4}] = Outpost.get(pid2).child_pids
+	end
+
+	@tag :ncat
+	@tag :ncat8100
+	test "teardown" do
+		cmd = "ncat -l -i 1 8100"
+
+		{:ok, bpid} = Branch.start_link()
+		{:ok, hpid} = Headquarters.start_link()
+		Headquarters.link_branch(hpid, bpid)
+
+		{:ok, opid} = Outpost.start_link(
+			branch_pid: bpid,
+			plan: %{"teardown" => cmd},
+		)
+		t = Task.async(fn -> Outpost.teardown(opid) end)
+
+		Helper.wait_for_process cmd
+		outpost = Outpost.get opid
+		assert %{
+			teardown: ^cmd,
+			teardown_callback_pid: {_, _},
+			tearing_down: true,
+			teardown_failed: false,
+			is_torndown: false,
+		} = outpost
+
+		Porcelain.exec("bash", [ "-c", "echo -n blah1 | ncat localhost 8100"])
+
+		outpost = Task.await t
+		assert %{
+			teardown: ^cmd,
+			teardown_callback_pid: {_, _},
+			tearing_down: false,
+			teardown_failed: false,
+			is_torndown: true,
+		} = outpost
 	end
 
 	@tag distributed: true

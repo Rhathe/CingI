@@ -1,0 +1,16 @@
+outpost:
+  teardown:
+    - echo "top teardown"
+missions:
+  - echo "top mission"
+  - outpost:
+      teardown:
+        - echo "middle teardown"
+    missions:
+      - echo "middle mission"
+      - outpost:
+          teardown: echo "bottom teardown"
+        missions:
+          one: echo "bottom mission one"
+          two: echo "bottom mission two"
+          three: echo "bottom mission three"

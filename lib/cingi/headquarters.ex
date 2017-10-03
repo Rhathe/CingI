@@ -11,7 +11,6 @@ defmodule Cingi.Headquarters do
 	alias Cingi.Headquarters
 	alias Cingi.Branch
 	alias Cingi.Mission
-	alias Cingi.MissionReport
 	use GenServer
 
 	defstruct [
@@ -126,15 +125,7 @@ defmodule Cingi.Headquarters do
 	end
 
 	def handle_cast({:finished_mission, mission_pid, result, branch_pid}, hq) do
-		mission = Mission.get(mission_pid)
-		super_pid = mission.supermission_pid
-		report_pid = mission.report_pid
-
-		cond do
-			super_pid -> Mission.send_result(super_pid, result, mission_pid)
-			report_pid -> MissionReport.finished_mission(report_pid, mission_pid)
-			true -> :ok
-		end
+		Mission.report_result_up(mission_pid, result)
 
 		running = hq.running_missions
 			|> Map.get(branch_pid, [])

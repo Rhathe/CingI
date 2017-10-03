@@ -191,6 +191,9 @@ defmodule Cingi.Branch do
 					nil -> nil
 					opid ->
 						o = Outpost.get(opid)
+						# Use the outpost itself if it's already setup,
+						# otherwise use it's parent so its setup can be run on
+						# an already setup outpost
 						if o.is_setup do opid else o.parent_pid end
 				end
 			supermission -> Mission.get_outpost(supermission)
