@@ -24,13 +24,21 @@ defmodule Cingi.Outpost do
 		parent_pid: nil,
 		child_pids: [],
 
-		setup: nil,
 		alternates: nil,
 
 		plan: %{},
+
+		setup: nil,
 		is_setup: false,
 		setting_up: false,
 		setup_failed: false,
+
+		teardown: nil,
+		is_torndown: false,
+		tearing_down: false,
+		teardown_failed: false,
+		teardown_callback_pid: nil,
+
 		dir: ".",
 		env: %{},
 
@@ -122,6 +130,14 @@ defmodule Cingi.Outpost do
 		GenServer.cast(parent_pid, {:inform_parent_of_child, child_pid})
 	end
 
+	def teardown(pid) do
+		try do
+			GenServer.call(pid, :teardown)
+		catch
+			:exit, _ -> nil
+		end
+	end
+
 	# Server Callbacks
 
 	def init(opts) do
@@ -136,7 +152,8 @@ defmodule Cingi.Outpost do
 						parent_pid: o.parent_pid,
 						plan: o.plan,
 						root_mission_pid: o.root_mission_pid,
-						setup: o.setup
+						setup: o.setup,
+						teardown: o.teardown,
 					}
 				catch
 					# FIXME: Make a blank outpost with bad seup steps instead to fail fast
@@ -149,6 +166,7 @@ defmodule Cingi.Outpost do
 			branch_pid: opts[:branch_pid],
 			pid: self(),
 			setup: outpost.plan["setup"],
+			teardown: outpost.plan["teardown"],
 
 			# Branch synchronously creates new outposts and their versions,
 			# So outposts on a branch are created one at a time
@@ -179,6 +197,20 @@ defmodule Cingi.Outpost do
 	def handle_call(:get_alternates, _from, outpost) do
 		alternates = Agent.get(outpost.alternates, &(&1))
 		{:reply, alternates, outpost}
+	end
+
+	def handle_call(:teardown, from_pid, outpost) do
+		case outpost.teardown do
+			nil ->
+				outpost = %Outpost{outpost | is_torndown: true}
+				{:reply, outpost, outpost}
+			teardown ->
+				run_setup_or_teardown(outpost, teardown)
+				{:noreply, %Outpost{outpost |
+					tearing_down: true,
+					teardown_callback_pid: from_pid,
+				}}
+		end
 	end
 
 	def handle_cast({:field_agent_data, _fa_pid, data}, outpost) do
@@ -252,6 +284,20 @@ defmodule Cingi.Outpost do
 	end
 
 	def handle_cast({:report_has_finished, _report_pid, mission_pid}, outpost) do
+		outpost = case {outpost.setting_up, outpost.tearing_down} do
+			{false, false} -> outpost
+			{true, _} -> setup_report_has_finished(mission_pid, outpost)
+			{_, true} -> teardown_report_has_finished(mission_pid, outpost)
+			_ -> outpost
+		end
+		{:noreply, outpost}
+	end
+
+	###########
+	# HELPERS #
+	###########
+
+	def setup_report_has_finished(mission_pid, outpost) do
 		# Get last line of output from setup and see if it is in a proper format
 		output = try do
 			Mission.get_output(mission_pid)
@@ -330,14 +376,17 @@ defmodule Cingi.Outpost do
 
 		Enum.map(outpost.queued_field_agents, &(run_field_agent(&1, outpost)))
 
-		{:noreply, %Outpost{outpost |
-			queued_field_agents: [],
-		}}
+		%Outpost{outpost | queued_field_agents: []}
 	end
 
-	###########
-	# HELPERS #
-	###########
+	def teardown_report_has_finished(_mission_pid, outpost) do
+		outpost = %Outpost{outpost |
+			is_torndown: true,
+			tearing_down: false,
+		}
+		GenServer.reply(outpost.teardown_callback_pid, outpost)
+		outpost
+	end
 
 	def run_field_agent({:bash_process, fa_pid}, outpost) do
 		case outpost.setup_failed do
@@ -359,7 +408,7 @@ defmodule Cingi.Outpost do
 		FieldAgent.send_mission_plan(fa_pid, plan, nil, fa_pid)
 	end
 
-	def run_setup_or_teardown(outpost, missions, prev_mission_pid) do
+	def run_setup_or_teardown(outpost, missions, prev_mission_pid \\ nil) do
 		missions = missions || [":"]
 
 		yaml_opts = [
