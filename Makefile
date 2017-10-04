@@ -7,6 +7,12 @@ FORCE:
 deps: FORCE
 	mix deps.get
 
+publish: FORCE
+	mix hex.publish
+
+download: FORCE
+	mix escript.install hex cingi
+
 test: FORCE
 	mix test
 	make test-distributed
