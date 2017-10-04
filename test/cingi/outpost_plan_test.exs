@@ -229,4 +229,45 @@ defmodule CingiOutpostPlansTest do
 			assert 137 = ctx.exit_code
 		end
 	end
+
+	describe "teardown outpost plan" do
+		setup do
+			Helper.run_mission_report("test/mission_plans/outposts/teardown.yaml")
+		end
+
+		setup ctx do
+			reports = ctx.res[:branch_pid]
+				|> Cingi.Branch.get
+				|> (fn(b) -> b.mission_reports end).()
+				|> Enum.map(&Cingi.MissionReport.get/1)
+			[reports: reports]
+		end
+
+		setup ctx do
+			setup_output = ctx.reports
+				|> Enum.slice(-3, 3)
+				|> Enum.map(&(Enum.at(&1.missions, 0)))
+				|> Enum.map(&Cingi.Mission.get/1)
+				|> Enum.map(&Helper.get_output/1)
+			[setup_output: setup_output]
+		end
+
+		test "right output", ctx do
+			assert [
+				"bottom mission one",
+				"bottom mission three",
+				"bottom mission two",
+				"middle mission",
+				"top mission"
+			] = Enum.sort(ctx.output)
+		end
+
+		test "right teardown output, teardown in own outpost", ctx do
+			assert [
+				["bottom teardown BOTTOMTHREE"],
+				["middle teardown MIDDLETWO"],
+				["top teardown TOPONE"],
+			] = ctx.setup_output
+		end
+	end
 end

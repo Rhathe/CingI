@@ -2,7 +2,6 @@ MIN_BRANCHES = 2
 BRANCH_NAME = two
 PRINT_BRANCH_OUTPUT =
 FILE = --file test/gitclone_cingi.yaml
-#FILE = --file test/mission_plans/outposts/teardown.yaml
 FORCE:
 
 deps: FORCE

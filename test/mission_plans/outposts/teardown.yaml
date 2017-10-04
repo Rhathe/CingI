@@ -1,16 +1,22 @@
-outpost:
-  teardown:
-    - echo "top teardown"
-missions:
-  - echo "top mission"
-  - outpost:
-      teardown:
-        - echo "middle teardown"
-    missions:
-      - echo "middle mission"
-      - outpost:
-          teardown: echo "bottom teardown"
-        missions:
-          one: echo "bottom mission one"
-          two: echo "bottom mission two"
-          three: echo "bottom mission three"
+- outpost:
+    env:
+      SETUP_ENV: "TOPONE"
+    teardown:
+      - echo "top teardown $SETUP_ENV"
+  missions:
+    - echo "top mission"
+    - outpost:
+        env:
+          SETUP_ENV: "MIDDLETWO"
+        teardown:
+          - echo "middle teardown $SETUP_ENV"
+      missions:
+        - echo "middle mission"
+        - outpost:
+            env:
+              SETUP_ENV: "BOTTOMTHREE"
+            teardown: echo "bottom teardown $SETUP_ENV"
+          missions:
+            one: echo "bottom mission one"
+            two: echo "bottom mission two"
+            three: echo "bottom mission three"
