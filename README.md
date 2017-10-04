@@ -396,6 +396,24 @@ missions:
   - echo "$SOME_ENV" # Will print someval
 ```
 
+If you want to clean up the effects of `setup` steps in a node, you can specify a `teardown`.
+Like a `setup`, a `teardown` is a mission that's run whenever the mission that created the outpost
+has finished. Teardowns run in every node that had that specific outpost, and runs as missions
+in that outpost, so the `env` and `dir` values apply in the teardown step.
+
+```yaml
+outpost:
+  dir: $SETUP['a']
+  setup:
+    - mkdir /tmp/cingi_tmp_folder
+    - "echo \"{\\\"a\\\": \\\"/tmp/cingi_tmp_folder\\\"}\""
+  teardown:
+    - pwd | xargs echo "teardown mission in" # Will print "teardown mission in /tmp/cingi_tmp_folder"
+    - cd ../ && rmdir cingi_tmp_folder # Will go to tmp and rm the tmp directory we created
+missions:
+  - pwd | xargs echo "main mission in" # Will print "main mission in /tmp/cingi_tmp_folder"
+```
+
 ### When: Conditional Missions
 
 You can have missions run conditionally if run sequentially by setting the `when` field.

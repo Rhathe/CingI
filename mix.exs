@@ -5,7 +5,7 @@ defmodule Cingi.Mixfile do
 		[
 			app: :cingi,
 			name: "CingI",
-			version: "0.1.2",
+			version: "0.1.3",
 			elixir: "~> 1.5",
 			escript: [
 				main_module: Cingi.CLI,
