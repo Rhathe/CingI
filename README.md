@@ -228,9 +228,9 @@ If a mission is composed of parallel submissions, all submissions will use its s
     two: read INPUT; echo "second input is [$INPUT]" # will print "second input is [mission input]"
 ```
 
-A mission's output will be output of its submissions
-(in order if sequential submissions,
-interleaved depending on execution time if parallel submissions).
+A mission's output will be the output of its submissions
+(in order if they are sequential submissions,
+interleaved depending on execution time if they are parallel submissions).
 
 ```yaml
 - - echo one
@@ -338,6 +338,9 @@ Since CingI can be run in a distributed manner, each Branch could have been run 
 directories with different environment variables. It may be necessary to set up the environment
 to run the missions in.
 
+
+#### Environment Variables and Working Directory
+
 "Outposts" serve as a way to setup the environment in a branch before running a mission.
 They are defined in the `outpost` field, with further configuration using the
 `dir`, `env`, and `setup` fields. Outpost directories and environment variables are
@@ -361,6 +364,9 @@ missions:
       - echo "$ENV_1, $ENV_2" # Will print "one, another_two"
   - echo "$ENV_1, $ENV_2" # Will print "one, two"
 ```
+
+
+#### Setup
 
 You can also specify a `setup`. An outpost setup is essentially a mission that's run
 whenever an outpost needs to be setup for a mission. Setups and any parent setups are run only when
@@ -395,6 +401,9 @@ missions:
   - pwd # Will print "/tmp"
   - echo "$SOME_ENV" # Will print someval
 ```
+
+
+#### Teardown
 
 If you want to clean up the effects of `setup` steps in a node, you can specify a `teardown`.
 Like a `setup`, a `teardown` is a mission that's run whenever the mission that created the outpost
@@ -480,7 +489,10 @@ missions:
 ```
 
 
-## Extends
+### Extends
+
+
+#### Extending a template
 
 To prevent duplication of code, you can define the field `mission_plan_templates` in a mission
 and extend the templates defined there in its submissions with the field `extends_template`.
@@ -501,6 +513,9 @@ missions:
       - extends_template: one # Will also print one
 ```
 
+
+#### Extending a file
+
 You can also define a mission plan in another file and extend it with the `extends_file` field.
 (NOTE: The directory used for the file is the same directory defined it the outpost)
 
@@ -512,6 +527,15 @@ missions:
     missions:
       - extends_file: one.yaml # Will extend /tmp/one.yaml instead 
 ```
+
+
+## Roadmap
+
+- Add support for saving state information to some database (mnesia or sqlite?)
+- Build a frontend to interact with the core
+- Build a frontend to easily create mission plans
+- Support specifying which nodes to run on
+- Support running each command in specified docker images?
 
 
 ## License
